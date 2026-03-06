@@ -61,21 +61,24 @@ if 'form_count' not in st.session_state: st.session_state.form_count = 0
 if 'map_center' not in st.session_state: st.session_state.map_center = [46.6, 2.2]
 if 'map_zoom' not in st.session_state: st.session_state.map_zoom = 5
 
-# --- LOGIQUE DE SUPPRESSION (RETOUR GLOBAL) ---
-if "delete_idx" in st.query_params and "file" in st.query_params:
-    idx_to_del = int(st.query_params["delete_idx"])
-    target_file = st.query_params["file"]
+# --- LOGIQUE DE SUPPRESSION (DÉTECTION RENFORCÉE) ---
+# On utilise .get() pour être sûr de lire la valeur même si Streamlit hésite
+params = st.query_params
+if "delete_idx" in params and "file" in params:
+    idx_to_del = int(params["delete_idx"])
+    target_file = params["file"]
     
-    data, sha = api_github(target_file)
-    if data and 0 <= idx_to_del < len(data["features"]):
-        del data["features"][idx_to_del]
-        if api_github(target_file, data=data, sha=sha, methode="PUT"):
-            st.toast("Point supprimé")
-            # Retour à la vue d'ensemble seulement lors de la suppression
-            st.session_state.map_center = [46.6, 2.2]
-            st.session_state.map_zoom = 5
-            st.query_params.clear()
-            st.rerun()
+    data_points, sha_points = api_github(target_file)
+    if data_points and "features" in data_points:
+        if 0 <= idx_to_del < len(data_points["features"]):
+            del data_points["features"][idx_to_del]
+            if api_github(target_file, data=data_points, sha=sha_points, methode="PUT"):
+                st.toast(f"Point supprimé de {target_file}")
+                # Retour au global uniquement ici
+                st.session_state.map_center = [46.6, 2.2]
+                st.session_state.map_zoom = 5
+                st.query_params.clear()
+                st.rerun()
 
 st.subheader("🗺️ Couche")
 modes = ["Existant", "Nouveau"]
@@ -122,6 +125,7 @@ if existing_data and "features" in existing_data:
         coords = feature["geometry"]["coordinates"]
         prop = feature["properties"]
         
+        # window.top.location.href est crucial pour sortir de l'iframe de la carte
         delete_url = f"/?file={file_name}&delete_idx={i}"
         
         html_popup = f"""
@@ -168,7 +172,7 @@ if st.button("🚀 Sauvegarder", use_container_width=True):
         data['features'].append(nouveau_poi)
         if api_github(file_name, data=data, sha=sha, methode="PUT"):
             st.success("Enregistré !")
-            # On ne change PAS la vue ici pour rester sur le zoom actuel
+            # On ne réinitialise pas la vue ici (on garde le zoom actuel)
             if st.session_state.mode_selection == "Nouveau":
                 st.session_state.last_created = file_name
                 st.session_state.mode_selection = "Existant"
