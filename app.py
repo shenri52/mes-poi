@@ -6,7 +6,7 @@ from datetime import datetime
 import folium
 from streamlit_folium import st_folium
 from folium.plugins import LocateControl, Fullscreen
-from branca.element import Element, MacroElement
+from branca.element import Element
 
 # --- 1. CONFIGURATION ET SECRETS ---
 st.set_page_config(page_title="GéoCollect de mes POI", page_icon="📍", layout="wide")
@@ -103,30 +103,38 @@ m = folium.Map(
     zoom_control=True
 )
 
-# INJECTION DU BOUTON MAISON (VUE GLOBALE) VIA MACRO
-template = """
-{% macro html(this, kwargs) %}
-<div id="home-button" style="
-    position: absolute; 
-    top: 70px; left: 10px; 
-    width: 34px; height: 34px; 
-    background-color: white; 
-    border: 2px solid rgba(0,0,0,0.2); 
-    border-radius: 4px; 
-    z-index: 1000; 
-    cursor: pointer; 
-    display: flex; 
-    align-items: center; 
-    justify-content: center;
-    font-size: 20px;"
-    onclick="{{this._parent.get_name()}}.setView([46.6, 2.2], 5);">
-    🏠
-</div>
-{% endmacro %}
+# BOUTON MAISON - Méthode 100% compatible
+home_btn_html = f"""
+<script>
+    function addHomeButton() {{
+        var mapElement = document.querySelector('.leaflet-container');
+        if (mapElement && mapElement._leaflet_map) {{
+            var map = mapElement._leaflet_map;
+            var homeControl = L.Control.extend({{
+                options: {{ position: 'topleft' }},
+                onAdd: function (map) {{
+                    var container = L.DomUtil.create('div', 'leaflet-bar leaflet-control leaflet-control-custom');
+                    container.style.backgroundColor = 'white';
+                    container.style.width = '34px';
+                    container.style.height = '34px';
+                    container.style.display = 'flex';
+                    container.style.alignItems = 'center';
+                    container.style.justifyContent = 'center';
+                    container.style.cursor = 'pointer';
+                    container.innerHTML = '🏠';
+                    container.onclick = function() {{ map.setView([46.6, 2.2], 5); }};
+                    return container;
+                }}
+            }});
+            map.addControl(new homeControl());
+        }} else {{
+            setTimeout(addHomeButton, 500);
+        }}
+    }}
+    addHomeButton();
+</script>
 """
-macro = MacroElement()
-macro._template = Element(template)
-m.add_child(macro)
+m.get_root().html.add_child(Element(home_btn_html))
 
 LocateControl(auto_start=False).add_to(m)
 Fullscreen(position="topright", force_separate_button=True).add_to(m)
