@@ -5,8 +5,7 @@ import base64
 from datetime import datetime
 import folium
 from streamlit_folium import st_folium
-from folium.plugins import LocateControl, Fullscreen
-from branca.element import Element
+from folium.plugins import LocateControl, Fullscreen, HomeButton  # <-- Plugin natif ici
 
 # --- 1. CONFIGURATION ET SECRETS ---
 st.set_page_config(page_title="GéoCollect de mes POI", page_icon="📍", layout="wide")
@@ -99,42 +98,16 @@ st.subheader("✍️ Saisie")
 # --- CARTE ---
 m = folium.Map(
     location=st.session_state.map_center, 
-    zoom_start=st.session_state.map_zoom,
-    zoom_control=True
+    zoom_start=st.session_state.map_zoom
 )
 
-# Injection du bouton Maison (Vue Globale)
-vue_globale_js = Element("""
-    <script>
-    setTimeout(function() {
-        var maps = document.querySelectorAll('.leaflet-container');
-        maps.forEach(function(map_el) {
-            if (map_el._leaflet_map) {
-                var map = map_el._leaflet_map;
-                var ZoomHome = L.Control.extend({
-                    options: { position: 'topleft' },
-                    onAdd: function (map) {
-                        var container = L.DomUtil.create('div', 'leaflet-bar leaflet-control');
-                        container.style.backgroundColor = 'white';
-                        container.style.width = '30px';
-                        container.style.height = '30px';
-                        container.style.display = 'flex';
-                        container.style.alignItems = 'center';
-                        container.style.justifyContent = 'center';
-                        container.style.cursor = 'pointer';
-                        container.innerHTML = '<span style="font-size:18px;">🏠</span>';
-                        container.title = 'Vue globale France';
-                        container.onclick = function() { map.setView([46.6, 2.2], 5); };
-                        return container;
-                    }
-                });
-                map.addControl(new ZoomHome());
-            }
-        });
-    }, 500);
-    </script>
-""")
-m.get_root().html.add_child(vue_globale_js)
+# AJOUT DU BOUTON HOME NATIF
+# On lui donne les coordonnées de la vue globale (France)
+HomeButton(
+    extents=[[41.3, -5.1], [51.1, 9.6]], # Coordonnées approximatives de la France
+    title='Vue Globale',
+    position='topleft'
+).add_to(m)
 
 LocateControl(auto_start=False).add_to(m)
 Fullscreen(position="topright", force_separate_button=True).add_to(m)
@@ -143,6 +116,7 @@ if existing_data and "features" in existing_data:
     for i, feature in enumerate(existing_data["features"]):
         coords = feature["geometry"]["coordinates"]
         prop = feature["properties"]
+        # Nettoyage libellé
         nom_txt = str(prop.get('libelle', 'Sans nom')).replace('<b>', '').replace('</b>', '').split('<')[0]
         
         folium.Marker(
@@ -158,7 +132,7 @@ if st.session_state.clic:
         icon=folium.Icon(color="red", icon="star")
     ).add_to(m)
 
-# Rendu avec vue bloquée via session_state
+# Rendu de la carte avec verrouillage de vue
 donnees_carte = st_folium(
     m, 
     width="100%", 
@@ -168,10 +142,9 @@ donnees_carte = st_folium(
     key=f"map_{st.session_state.form_count}"
 )
 
-# LOGIQUE DE DETECTION ET BLOCAGE VUE
+# LOGIQUE DE DETECTION ET STABILITÉ
 if donnees_carte.get("last_object_clicked"):
     obj = donnees_carte["last_object_clicked"]
-    # On mémorise la vue actuelle pour la figer au prochain rendu
     st.session_state.map_center = [donnees_carte["center"]["lat"], donnees_carte["center"]["lng"]]
     st.session_state.map_zoom = donnees_carte["zoom"]
     
@@ -202,11 +175,7 @@ if donnees_carte.get("last_clicked") and not donnees_carte.get("last_object_clic
 libelle = st.text_input("Libellé", key=f"libelle_{st.session_state.form_count}")
 
 if st.session_state.clic:
-    st.markdown(f'''
-        <div style="background-color: rgba(212, 237, 218, 0.8); color: #155724; padding: 10px; border-radius: 5px; margin-bottom: 10px;">
-            📍 Point : {st.session_state.clic["lat"]:.5f}, {st.session_state.clic["lng"]:.5f}
-        </div>
-    ''', unsafe_allow_html=True)
+    st.info(f"📍 Point : {st.session_state.clic['lat']:.5f}, {st.session_state.clic['lng']:.5f}")
 
 if st.session_state.edit_idx is not None:
     c1, c2 = st.columns(2)
