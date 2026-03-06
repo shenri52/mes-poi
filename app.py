@@ -61,10 +61,11 @@ if 'form_count' not in st.session_state: st.session_state.form_count = 0
 if 'map_center' not in st.session_state: st.session_state.map_center = [46.6, 2.2]
 if 'map_zoom' not in st.session_state: st.session_state.map_zoom = 5
 
-# --- LOGIQUE DE SUPPRESSION DE POINT ---
-if "delete_idx" in st.query_params and "file" in st.query_params:
-    idx_to_del = int(st.query_params["delete_idx"])
-    target_file = st.query_params["file"]
+# --- LOGIQUE DE SUPPRESSION DE POINT (CORRIGÉE) ---
+params = st.query_params.to_dict()
+if "delete_idx" in params and "file" in params:
+    idx_to_del = int(params["delete_idx"])
+    target_file = params["file"]
     data_del, sha_del = api_github(target_file)
     if data_del and 0 <= idx_to_del < len(data_del["features"]):
         del data_del["features"][idx_to_del]
@@ -129,7 +130,6 @@ if existing_data and "features" in existing_data:
             </button>
         </div>
         """
-        # Restauration de l'icône par défaut pour éviter le carré vide
         folium.Marker(
             [coords[1], coords[0]], 
             popup=folium.Popup(html_popup, max_width=250),
@@ -153,7 +153,8 @@ if donnees_carte.get("last_clicked"):
 
 # --- FORMULAIRE ---
 libelle = st.text_input("Libellé", key=f"libelle_{st.session_state.form_count}")
-# --- AFFICHAGE DES COORDONNÉES  ---
+
+# --- AFFICHAGE DES COORDONNÉES ---
 if st.session_state.clic:
     st.markdown(f'''
         <div style="background-color: rgba(212, 237, 218, 0.8); 
@@ -165,6 +166,7 @@ if st.session_state.clic:
             📍 Point sélectionné : {st.session_state.clic["lat"]:.5f}, {st.session_state.clic["lng"]:.5f}
         </div>
     ''', unsafe_allow_html=True)
+
 date_du_jour = datetime.now().strftime("%Y-%m-%d")
 
 if st.button("🚀 Sauvegarder", use_container_width=True):
