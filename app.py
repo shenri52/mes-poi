@@ -5,7 +5,7 @@ import base64
 from datetime import datetime
 import folium
 from streamlit_folium import st_folium
-from folium.plugins import LocateControl
+from folium.plugins import LocateControl, Fullscreen
 
 # --- 1. CONFIGURATION ET SECRETS ---
 st.set_page_config(page_title="GéoCollect de mes POI", page_icon="📍", layout="wide")
@@ -42,7 +42,7 @@ def api_github(file_path, data=None, sha=None, methode="GET"):
         return None, None
     elif methode == "PUT":
         content_encoded = base64.b64encode(json.dumps(data, indent=4).encode('utf-8')).decode('utf-8')
-        payload = {"message": "📍 Ajout POI", "content": content_encoded, "branch": BRANCH}
+        payload = {"message": "📍 Modif POI", "content": content_encoded, "branch": BRANCH}
         if sha: payload["sha"] = sha
         r = requests.put(url, json=payload, headers=headers)
         return r.status_code in [200, 201]
@@ -58,9 +58,21 @@ if 'clic' not in st.session_state: st.session_state.clic = None
 if 'mode_selection' not in st.session_state: st.session_state.mode_selection = "Existant"
 if 'last_created' not in st.session_state: st.session_state.last_created = None
 if 'form_count' not in st.session_state: st.session_state.form_count = 0
-# Mémorisation de la vue de la carte
 if 'map_center' not in st.session_state: st.session_state.map_center = [46.6, 2.2]
 if 'map_zoom' not in st.session_state: st.session_state.map_zoom = 5
+
+# --- LOGIQUE DE SUPPRESSION D'UN POINT PRÉCIS ---
+query_params = st.query_params
+if "delete_idx" in query_params and "file" in query_params:
+    idx_to_del = int(query_params["delete_idx"])
+    target_file = query_params["file"]
+    data, sha = api_github(target_file)
+    if data and 0 <= idx_to_del < len(data["features"]):
+        del data["features"][idx_to_del]
+        if api_github(target_file, data=data, sha=sha, methode="PUT"):
+            st.toast(f"Point supprimé dans {target_file}")
+            st.query_params.clear()
+            st.rerun()
 
 st.subheader("🗺️ Couche")
 modes = ["Existant", "Nouveau"]
@@ -78,54 +90,48 @@ if st.session_state.mode_selection == "Nouveau":
 else:
     liste_fichiers = lister_geojson_github()
     dict_affichage = {f: f.replace('.geojson', '') for f in liste_fichiers}
-    
     idx_fichier = 0
     if st.session_state.last_created in liste_fichiers:
         idx_fichier = liste_fichiers.index(st.session_state.last_created)
     
     col_list, col_del = st.columns([3, 1])
-    
     with col_list:
-        file_name = st.selectbox(
-            "Choisir un jeu de donnée existant", 
-            options=liste_fichiers, 
-            format_func=lambda x: dict_affichage.get(x, x),
-            index=idx_fichier,
-            label_visibility="collapsed"
-        )
-    
+        file_name = st.selectbox("Choisir un jeu de donnée existant", options=liste_fichiers, 
+                                 format_func=lambda x: dict_affichage.get(x, x), index=idx_fichier, label_visibility="collapsed")
     with col_del:
         if file_name:
             existing_data, current_sha = api_github(file_name)
-            if st.button("🗑️", use_container_width=True, help="Supprimer ce fichier"):
+            if st.button("🗑️", use_container_width=True, help="Supprimer tout le fichier"):
                 if api_github(file_name, sha=current_sha, methode="DELETE"):
-                    st.warning(f"Supprimé")
+                    st.warning(f"Fichier supprimé")
                     st.session_state.last_created = None
                     st.rerun()
 
 st.write("---")
 st.subheader("✍️ Saisie")
-st.markdown(
-    """
-    <div style="background-color: #d1e7ff; color: #004085; padding: 5px 10px; border-radius: 5px; font-size: 14px; margin-bottom: 10px;">
-        💡 Cliquer sur la carte et saisir le libellé.
-    </div>
-    """,
-    unsafe_allow_html=True
-)
+st.markdown('<div style="background-color: #d1e7ff; color: #004085; padding: 5px 10px; border-radius: 5px; font-size: 14px; margin-bottom: 10px;">💡 Cliquer sur la carte et saisir le libellé.</div>', unsafe_allow_html=True)
 
 # --- CARTE ---
-# On utilise les valeurs stockées en session pour éviter le reset visuel
 m = folium.Map(location=st.session_state.map_center, zoom_start=st.session_state.map_zoom)
 LocateControl(auto_start=False).add_to(m)
+Fullscreen(position="topright", title="Plein écran", title_cancel="Sortir", force_separate_button=True).add_to(m)
 
 if existing_data and "features" in existing_data:
-    for feature in existing_data["features"]:
+    for i, feature in enumerate(existing_data["features"]):
         coords = feature["geometry"]["coordinates"]
         prop = feature["properties"]
+        # Création d'un lien de suppression via URL query params
+        html_popup = f"""
+        <b>{prop.get('libelle', 'Sans nom')}</b><br>
+        Date: {prop.get('date', 'N/A')}<br><br>
+        <a href="/?file={file_name}&delete_idx={i}" target="_self" 
+           style="color:red; text-decoration:none; font-weight:bold; border:1px solid red; padding:3px; border-radius:3px;">
+           🗑️ Supprimer ce point
+        </a>
+        """
         folium.Marker(
             [coords[1], coords[0]], 
-            popup=f"<b>{prop.get('libelle', 'Sans nom')}</b><br>Date: {prop.get('date', 'N/A')}",
+            popup=folium.Popup(html_popup, max_width=200),
             icon=folium.Icon(color="blue", icon="info-sign")
         ).add_to(m)
 
@@ -135,12 +141,9 @@ if st.session_state.clic:
 
 donnees_carte = st_folium(m, width="100%", height=350)
 
-# Mise à jour de la position et du clic sans perdre le zoom
 if donnees_carte.get("last_clicked"):
-    # On sauvegarde systématiquement le centre et le zoom actuels de la carte
     st.session_state.map_center = [donnees_carte["center"]["lat"], donnees_carte["center"]["lng"]]
     st.session_state.map_zoom = donnees_carte["zoom"]
-    
     if st.session_state.clic != donnees_carte["last_clicked"]:
         st.session_state.clic = donnees_carte["last_clicked"]
         st.rerun()
@@ -155,19 +158,13 @@ if st.session_state.clic:
 if st.button("🚀 Sauvegarder", use_container_width=True):
     if file_name and libelle and st.session_state.clic:
         data, sha = api_github(file_name)
-        if data is None:
-            data = {"type": "FeatureCollection", "features": []}
-        
+        if data is None: data = {"type": "FeatureCollection", "features": []}
         nouveau_poi = {
             "type": "Feature",
-            "geometry": {
-                "type": "Point",
-                "coordinates": [st.session_state.clic['lng'], st.session_state.clic['lat']]
-            },
+            "geometry": {"type": "Point", "coordinates": [st.session_state.clic['lng'], st.session_state.clic['lat']]},
             "properties": {"libelle": libelle, "date": date_du_jour}
         }
         data['features'].append(nouveau_poi)
-        
         if api_github(file_name, data=data, sha=sha, methode="PUT"):
             st.success("Enregistré !")
             if st.session_state.mode_selection == "Nouveau":
