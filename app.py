@@ -59,108 +59,104 @@ if 'mode_selection' not in st.session_state: st.session_state.mode_selection = "
 if 'last_created' not in st.session_state: st.session_state.last_created = None
 if 'form_count' not in st.session_state: st.session_state.form_count = 0
 
-# Utilisation de colonnes qui s'empilent sur mobile
-col_saisie, col_carte = st.columns([1, 1.5])
+# On utilise une seule colonne principale pour le mobile
+st.subheader("🗺️ Couche")
+modes = ["Existant", "Nouveau"]
+idx_defaut = modes.index(st.session_state.mode_selection)
 
-with col_saisie:
-    st.subheader("🗺️ Couche")
-    modes = ["Existant", "Nouveau"]
-    idx_defaut = modes.index(st.session_state.mode_selection)
+choice = st.radio("", modes, index=idx_defaut, horizontal=True)
+st.session_state.mode_selection = choice
+
+existing_data = None 
+current_sha = None
+
+if st.session_state.mode_selection == "Nouveau":
+    nom_saisi = st.text_input("Nom du nouveau fichier (ex: velos)", "").strip()
+    file_name = f"{nom_saisi}.geojson" if nom_saisi else None
+else:
+    liste_fichiers = lister_geojson_github()
+    dict_affichage = {f: f.replace('.geojson', '') for f in liste_fichiers}
     
-    # Radio sans libellé pour gagner de la place
-    choice = st.radio("", modes, index=idx_defaut, horizontal=True)
-    st.session_state.mode_selection = choice
+    idx_fichier = 0
+    if st.session_state.last_created in liste_fichiers:
+        idx_fichier = liste_fichiers.index(st.session_state.last_created)
     
-    existing_data = None 
-    current_sha = None
+    file_name = st.selectbox(
+        "Choisir un jeu de donnée existant", 
+        options=liste_fichiers, 
+        format_func=lambda x: dict_affichage.get(x, x),
+        index=idx_fichier
+    )
     
-    if st.session_state.mode_selection == "Nouveau":
-        nom_saisi = st.text_input("Nom du nouveau fichier (ex: velos)", "").strip()
-        file_name = f"{nom_saisi}.geojson" if nom_saisi else None
+    if file_name:
+        existing_data, current_sha = api_github(file_name)
+
+st.write("---")
+st.subheader("✍️ Saisie")
+st.info("💡 Cliquer sur la carte pour indiquer la localisation.")
+
+# --- LA CARTE PLACÉE ICI ---
+m = folium.Map(location=[46.6, 2.2], zoom_start=5)
+LocateControl(auto_start=False).add_to(m)
+
+if existing_data and "features" in existing_data:
+    for feature in existing_data["features"]:
+        coords = feature["geometry"]["coordinates"]
+        prop = feature["properties"]
+        folium.Marker(
+            [coords[1], coords[0]], 
+            popup=f"<b>{prop.get('libelle', 'Sans nom')}</b><br>Date: {prop.get('date', 'N/A')}",
+            icon=folium.Icon(color="blue", icon="info-sign")
+        ).add_to(m)
+
+if st.session_state.clic:
+    folium.Marker([st.session_state.clic['lat'], st.session_state.clic['lng']], 
+                  icon=folium.Icon(color="red", icon="star")).add_to(m)
+
+donnees_carte = st_folium(m, width="100%", height=350)
+if donnees_carte.get("last_clicked"):
+    if st.session_state.clic != donnees_carte["last_clicked"]:
+        st.session_state.clic = donnees_carte["last_clicked"]
+        st.rerun()
+
+# --- REPRISE DU FORMULAIRE ---
+libelle = st.text_input("Libellé du point", key=f"libelle_{st.session_state.form_count}")
+date_du_jour = datetime.now().strftime("%Y-%m-%d")
+
+if st.session_state.clic:
+    st.success(f"📍 {st.session_state.clic['lat']:.4f}, {st.session_state.clic['lng']:.4f}")
+
+if st.button("🚀 Sauvegarder", use_container_width=True):
+    if file_name and libelle and st.session_state.clic:
+        data, sha = api_github(file_name)
+        if data is None:
+            data = {"type": "FeatureCollection", "features": []}
+        
+        nouveau_poi = {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [st.session_state.clic['lng'], st.session_state.clic['lat']]
+            },
+            "properties": {"libelle": libelle, "date": date_du_jour}
+        }
+        data['features'].append(nouveau_poi)
+        
+        if api_github(file_name, data=data, sha=sha, methode="PUT"):
+            st.success("Enregistré sur GitHub !")
+            if st.session_state.mode_selection == "Nouveau":
+                st.session_state.last_created = file_name
+                st.session_state.mode_selection = "Existant"
+            st.session_state.clic = None
+            st.session_state.form_count += 1
+            st.rerun()
     else:
-        liste_fichiers = lister_geojson_github()
-        dict_affichage = {f: f.replace('.geojson', '') for f in liste_fichiers}
-        
-        idx_fichier = 0
-        if st.session_state.last_created in liste_fichiers:
-            idx_fichier = liste_fichiers.index(st.session_state.last_created)
-        
-        file_name = st.selectbox(
-            "Choisir un jeu de donnée existant", 
-            options=liste_fichiers, 
-            format_func=lambda x: dict_affichage.get(x, x),
-            index=idx_fichier
-        )
-        
-        if file_name:
-            existing_data, current_sha = api_github(file_name)
+        st.error("Données manquantes.")
 
+if st.session_state.mode_selection == "Existant" and file_name:
     st.write("---")
-    st.subheader("✍️ Saisie")
-    st.info("💡 Cliquer sur la carte pour indiquer la localisation.")
-    libelle = st.text_input("Libellé du point", key=f"libelle_{st.session_state.form_count}")
-    date_du_jour = datetime.now().strftime("%Y-%m-%d")
-
-    if st.session_state.clic:
-        st.success(f"📍 {st.session_state.clic['lat']:.4f}, {st.session_state.clic['lng']:.4f}")
-    
-    if st.button("🚀 Sauvegarder", use_container_width=True):
-        if file_name and libelle and st.session_state.clic:
-            data, sha = api_github(file_name)
-            if data is None:
-                data = {"type": "FeatureCollection", "features": []}
-            
-            nouveau_poi = {
-                "type": "Feature",
-                "geometry": {
-                    "type": "Point",
-                    "coordinates": [st.session_state.clic['lng'], st.session_state.clic['lat']]
-                },
-                "properties": {"libelle": libelle, "date": date_du_jour}
-            }
-            data['features'].append(nouveau_poi)
-            
-            if api_github(file_name, data=data, sha=sha, methode="PUT"):
-                st.success("Enregistré sur GitHub !")
-                if st.session_state.mode_selection == "Nouveau":
-                    st.session_state.last_created = file_name
-                    st.session_state.mode_selection = "Existant"
-                st.session_state.clic = None
-                st.session_state.form_count += 1
-                st.rerun()
-        else:
-            st.error("Données manquantes.")
-
-    # --- NOUVEAU : SUPPRESSION ---
-    if st.session_state.mode_selection == "Existant" and file_name:
-        st.write("---")
-        if st.button("🗑️ Supprimer ce fichier", use_container_width=True, type="secondary"):
-            if api_github(file_name, sha=current_sha, methode="DELETE"):
-                st.warning(f"Fichier {file_name} supprimé.")
-                st.session_state.last_created = None
-                st.rerun()
-
-with col_carte:
-    # Hauteur réduite pour mobile (350px au lieu de 500px)
-    m = folium.Map(location=[46.6, 2.2], zoom_start=5)
-    LocateControl(auto_start=False).add_to(m)
-    
-    if existing_data and "features" in existing_data:
-        for feature in existing_data["features"]:
-            coords = feature["geometry"]["coordinates"]
-            prop = feature["properties"]
-            folium.Marker(
-                [coords[1], coords[0]], 
-                popup=f"<b>{prop.get('libelle', 'Sans nom')}</b><br>Date: {prop.get('date', 'N/A')}",
-                icon=folium.Icon(color="blue", icon="info-sign")
-            ).add_to(m)
-    
-    if st.session_state.clic:
-        folium.Marker([st.session_state.clic['lat'], st.session_state.clic['lng']], 
-                      icon=folium.Icon(color="red", icon="star")).add_to(m)
-    
-    donnees_carte = st_folium(m, width="100%", height=350)
-    if donnees_carte.get("last_clicked"):
-        if st.session_state.clic != donnees_carte["last_clicked"]:
-            st.session_state.clic = donnees_carte["last_clicked"]
+    if st.button("🗑️ Supprimer ce fichier", use_container_width=True, type="secondary"):
+        if api_github(file_name, sha=current_sha, methode="DELETE"):
+            st.warning(f"Fichier {file_name} supprimé.")
+            st.session_state.last_created = None
             st.rerun()
