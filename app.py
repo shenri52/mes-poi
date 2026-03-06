@@ -104,15 +104,12 @@ if existing_data and "features" in existing_data:
     for i, feature in enumerate(existing_data["features"]):
         coords = feature["geometry"]["coordinates"]
         prop = feature["properties"]
-        delete_url = f"/?file={file_name}&delete_idx={i}"
+        
+        # Popup simplifié sans bouton de suppression
         html_popup = f"""
         <div style="font-family: sans-serif; min-width: 150px;">
             <b>{prop.get('libelle', 'Sans nom')}</b><br>
-            <small>{prop.get('date', '')}</small><br><br>
-            <button onclick="window.top.location.href='{delete_url}'" 
-                    style="color:white; background-color:#d33; border:none; padding:8px; border-radius:4px; cursor:pointer; font-weight:bold; width:100%;">
-                🗑️ Supprimer ce point
-            </button>
+            <small>{prop.get('date', '')}</small>
         </div>
         """
         folium.Marker(
