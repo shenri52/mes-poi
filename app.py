@@ -1,42 +1,25 @@
-import streamlit as st
-import creation, ajout  # Vos futurs modules pour la logique métier
-
-# --- CONFIGURATION ---
-st.set_page_config(page_title="GéoCollect", page_icon="📍", layout="centered")
-
-# --- INITIALISATION DE LA NAVIGATION ---
-if 'page' not in st.session_state:
-    st.session_state.page = 'accueil'
-
-def changer_page(nom):
-    st.session_state.page = nom
-    st.rerun()
-
-# --- 1. MENU D'ACCUEIL ---
-if st.session_state.page == 'accueil':
-    st.markdown("<h1 style='text-align: center;'>📍 GéoCollect</h1>", unsafe_allow_html=True)
-    st.markdown("<p style='text-align: center;'>Gestionnaire de données géographiques (GeoJSON)</p>", unsafe_allow_html=True)
-    st.write("---")
-
-    # Bouton pour créer un nouveau fichier (nouveau jeu de données)
-    if st.button("🏗️ Créer une nouvelle couche de POI", use_container_width=True):
-        changer_page("creation")
+def gestion_github(file_path, data=None, sha=None, methode="GET"):
+    url = f"https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/contents/{file_path}"
+    headers = {"Authorization": f"token {GITHUB_TOKEN}", "Accept": "application/vnd.github.v3+json"}
     
-    # Bouton pour alimenter un fichier existant
-    if st.button("➕ Ajouter des données dans une couche existante", use_container_width=True):
-        changer_page("ajouter")
+    if methode == "GET":
+        r = requests.get(url, headers=headers)
+        if r.status_code == 200:
+            res = r.json()
+            content = json.loads(base64.b64decode(res['content']).decode('utf-8'))
+            return content, res['sha']
+        return None, None
 
-# --- 2. ROUTAGE (CONTENU DES PAGES) ---
-else:
-    if st.session_state.page == "creation":
-        st.subheader("🏗️ Création d'une nouvelle couche")
-        creation.afficher() # Appelle la fonction dans creation.py
+    elif methode == "PUT":
+        content_encoded = base64.b64encode(json.dumps(data, indent=4).encode('utf-8')).decode('utf-8')
+        payload = {"message": "Ajout POI", "content": content_encoded, "branch": BRANCH}
+        if sha: payload["sha"] = sha
         
-    elif st.session_state.page == "ajouter":
-        st.subheader("➕ Ajout de points de données")
-        ajout.afficher() # Appelle la fonction dans ajout.py
-
-    # --- 3. BOUTON RETOUR ---
-    st.write("---")
-    if st.button("⬅️ Retour à l'accueil", use_container_width=True):
-        changer_page('accueil')
+        r = requests.put(url, json=payload, headers=headers)
+        
+        # --- LE DEBUG QUI SAUVE ---
+        if r.status_code not in [200, 201]:
+            st.error(f"Code Erreur GitHub : {r.status_code}")
+            st.json(r.json()) # Affiche la raison exacte (ex: "Resource protected by organziation")
+            
+        return r.status_code in [200, 201]
