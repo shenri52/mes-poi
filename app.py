@@ -19,9 +19,10 @@ except KeyError:
     st.error("⚠️ Secrets GitHub manquants.")
     st.stop()
 
-# --- 2. FONCTIONS GITHUB ---
+# --- 2. FONCTIONS GITHUB (Ciblées sur le dossier /data/) ---
 def lister_geojson_github():
-    url = f"https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/contents/"
+    # On liste le contenu du dossier data
+    url = f"https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/contents/data"
     headers = {"Authorization": f"token {GITHUB_TOKEN}"}
     r = requests.get(url, headers=headers)
     if r.status_code == 200:
@@ -29,7 +30,9 @@ def lister_geojson_github():
     return []
 
 def api_github(file_path, data=None, sha=None, methode="GET"):
-    url = f"https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/contents/{file_path}"
+    # On force le chemin vers le dossier data
+    full_path = f"data/{file_path}"
+    url = f"https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/contents/{full_path}"
     headers = {"Authorization": f"token {GITHUB_TOKEN}", "Accept": "application/vnd.github.v3+json"}
     
     if methode == "GET":
@@ -49,7 +52,6 @@ def api_github(file_path, data=None, sha=None, methode="GET"):
 # --- 3. INTERFACE ---
 st.title("📍 GéoCollect de mes POI")
 
-# Initialisation
 if 'clic' not in st.session_state: st.session_state.clic = None
 if 'mode_action' not in st.session_state: st.session_state.mode_action = "Existant"
 if 'last_created' not in st.session_state: st.session_state.last_created = None
@@ -60,10 +62,8 @@ col_saisie, col_carte = st.columns([1, 2])
 with col_saisie:
     st.subheader("🗺️ Couche")
     modes = ["Existant", "Nouveau"]
-    # On définit l'index par défaut basé sur l'état de session
     idx_defaut = modes.index(st.session_state.mode_action)
     
-    # IMPORTANT : Le radio met à jour directement st.session_state.mode_action
     st.radio("Action", modes, index=idx_defaut, horizontal=True, key="mode_action")
     
     existing_data = None 
@@ -82,7 +82,7 @@ with col_saisie:
         file_name = st.selectbox(
             "Choisir un jeu de donnée existant", 
             options=liste_fichiers, 
-            format_func=lambda x: dict_affichage[x],
+            format_func=lambda x: dict_affichage.get(x, x),
             index=idx_fichier
         )
         
@@ -117,7 +117,6 @@ with col_saisie:
             if api_github(file_name, data=data, sha=sha, methode="PUT"):
                 st.success("Enregistré sur GitHub !")
                 
-                # FORCE LA BASCULE
                 if st.session_state.mode_action == "Nouveau":
                     st.session_state.last_created = file_name
                     st.session_state.mode_action = "Existant"
