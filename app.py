@@ -65,8 +65,7 @@ if 'edit_label' not in st.session_state: st.session_state.edit_label = ""
 
 st.subheader("🗺️ Couche")
 modes = ["Existant", "Nouveau"]
-idx_defaut = modes.index(st.session_state.mode_selection)
-choice = st.radio("", modes, index=idx_defaut, horizontal=True)
+choice = st.radio("", modes, index=modes.index(st.session_state.mode_selection), horizontal=True)
 st.session_state.mode_selection = choice
 
 existing_data = None 
@@ -105,13 +104,12 @@ if existing_data and "features" in existing_data:
     for i, feature in enumerate(existing_data["features"]):
         coords = feature["geometry"]["coordinates"]
         prop = feature["properties"]
-        # On s'assure que le libellé est une chaîne propre
-        nom_affichage = str(prop.get('libelle', 'Sans nom'))
+        nom_txt = str(prop.get('libelle', 'Sans nom'))
         
         folium.Marker(
             [coords[1], coords[0]], 
-            popup=folium.Popup(f"<b>{nom_affichage}</b>", max_width=200),
-            tooltip=nom_affichage,
+            popup=folium.Popup(f"<b>{nom_txt}</b>", max_width=200),
+            tooltip=nom_txt,
             icon=folium.Icon(color="blue", icon="info-sign")
         ).add_to(m)
 
@@ -121,31 +119,28 @@ if st.session_state.clic:
         icon=folium.Icon(color="red", icon="star")
     ).add_to(m)
 
-donnees_carte = st_folium(m, width="100%", height=350)
-
-# SAUVEGARDE CENTRE ET ZOOM
-if donnees_carte.get("center"):
-    st.session_state.map_center = [donnees_carte["center"]["lat"], donnees_carte["center"]["lng"]]
-if donnees_carte.get("zoom"):
-    st.session_state.map_zoom = donnees_carte["zoom"]
+# On désactive la mise à jour automatique du centre lors du rendu pour figer la vue
+donnees_carte = st_folium(m, width="100%", height=350, key="map_stable")
 
 # LOGIQUE DE DETECTION DU CLIC SUR UN POINT
 if donnees_carte.get("last_object_clicked"):
-    lat_c = donnees_carte["last_object_clicked"]["lat"]
-    lng_c = donnees_carte["last_object_clicked"]["lng"]
+    obj = donnees_carte["last_object_clicked"]
     if existing_data:
         for i, feat in enumerate(existing_data["features"]):
             coords = feat["geometry"]["coordinates"]
-            if round(coords[1], 5) == round(lat_c, 5) and round(coords[0], 5) == round(lng_c, 5):
+            if round(coords[1], 4) == round(obj["lat"], 4) and round(coords[0], 4) == round(obj["lng"], 4):
                 if st.session_state.edit_idx != i:
                     st.session_state.edit_idx = i
                     st.session_state.edit_label = str(feat["properties"].get("libelle", ""))
-                    st.session_state.clic = {"lat": lat_c, "lng": lng_c}
+                    st.session_state.clic = {"lat": obj["lat"], "lng": obj["lng"]}
+                    # On force le libellé dans le widget
                     st.session_state[f"libelle_{st.session_state.form_count}"] = st.session_state.edit_label
                     st.rerun()
 
-# LOGIQUE CLIC CARTE VIDE
+# LOGIQUE CLIC CARTE VIDE (on ne change le zoom que si on clique sur le vide)
 if donnees_carte.get("last_clicked") and not donnees_carte.get("last_object_clicked"):
+    st.session_state.map_center = [donnees_carte["center"]["lat"], donnees_carte["center"]["lng"]]
+    st.session_state.map_zoom = donnees_carte["zoom"]
     if st.session_state.clic != donnees_carte["last_clicked"]:
         st.session_state.clic = donnees_carte["last_clicked"]
         st.session_state.edit_idx = None
@@ -159,15 +154,13 @@ libelle = st.text_input("Libellé", key=f"libelle_{st.session_state.form_count}"
 if st.session_state.clic:
     st.markdown(f'''
         <div style="background-color: rgba(212, 237, 218, 0.8); color: #155724; padding: 10px; border-radius: 5px; margin-bottom: 10px;">
-            📍 Point sélectionné : {st.session_state.clic["lat"]:.5f}, {st.session_state.clic["lng"]:.5f}
+            📍 Point : {st.session_state.clic["lat"]:.5f}, {st.session_state.clic["lng"]:.5f}
         </div>
     ''', unsafe_allow_html=True)
 
-date_du_jour = datetime.now().strftime("%Y-%m-%d")
-
 if st.session_state.edit_idx is not None:
-    col1, col2 = st.columns(2)
-    with col1:
+    c1, c2 = st.columns(2)
+    with c1:
         if st.button("📝 Modifier", use_container_width=True):
             data, sha = api_github(file_name)
             data["features"][st.session_state.edit_idx]["properties"]["libelle"] = libelle
@@ -175,18 +168,15 @@ if st.session_state.edit_idx is not None:
                 st.success("Modifié !")
                 st.session_state.clic = None
                 st.session_state.edit_idx = None
-                st.session_state.edit_label = ""
                 st.session_state.form_count += 1
                 st.rerun()
-    with col2:
-        if st.button("🗑️ Supprimer le point", use_container_width=True):
+    with c2:
+        if st.button("🗑️ Supprimer", use_container_width=True):
             data, sha = api_github(file_name)
             del data["features"][st.session_state.edit_idx]
             if api_github(file_name, data=data, sha=sha, methode="PUT"):
-                st.toast("Point supprimé")
                 st.session_state.clic = None
                 st.session_state.edit_idx = None
-                st.session_state.edit_label = ""
                 st.session_state.form_count += 1
                 st.rerun()
 else:
@@ -197,7 +187,7 @@ else:
             nouveau_poi = {
                 "type": "Feature",
                 "geometry": {"type": "Point", "coordinates": [st.session_state.clic['lng'], st.session_state.clic['lat']]},
-                "properties": {"libelle": libelle, "date": date_du_jour}
+                "properties": {"libelle": libelle, "date": datetime.now().strftime("%Y-%m-%d")}
             }
             data_save['features'].append(nouveau_poi)
             if api_github(file_name, data=data_save, sha=sha_save, methode="PUT"):
