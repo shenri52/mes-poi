@@ -96,65 +96,39 @@ else:
 
 st.write("---")
 
-# --- 5. STYLE CSS (ALIGNEMENT ET MARGES) ---
+# --- 5. STYLE CSS ---
 st.markdown("""
     <style>
-    /* 1. Réduire l'espace entre blocs */
     [data-testid="stVerticalBlock"] > div {
         padding-top: 0rem !important;
         padding-bottom: 0rem !important;
     }
-
-    /* 2. Marges Carte */
-    div[data-testid="stHtmlBlock"] + div { margin-top: -20px !important; }
+    div[data-testid="stHtmlBlock"] + div {
+        margin-top: -20px !important;
+    }
     .element-container:has(iframe) {
         margin-top: -20px !important;
         margin-bottom: -20px !important;
     }
-
-    /* 3. Bouton Vue France Arrondi */
     div.stButton > button:first-child {
         margin-bottom: 2px !important;
         height: 38px;
         border-radius: 8px !important;
     }
-
-    /* 4. CONTENEUR FLEX (POUR ALIGNEMENT VERTICAL) */
-    .mobile-row {
-        display: flex !important;
-        flex-direction: row !important;
-        align-items: center !important;
-        gap: 8px !important;
-        width: 100%;
-        height: 42px;
-        margin-top: 5px;
-    }
-
-    .mobile-label {
-        font-weight: bold;
-        white-space: nowrap;
-        margin: 0px !important;
+    .valign {
         display: flex;
         align-items: center;
-        font-size: 0.9em;
+        height: 100%;
+        padding-top: 8px;
+        font-weight: bold;
     }
-
-    div[data-testid="stTextInput"] {
-        margin: 0px !important;
-        padding: 0px !important;
-        flex-grow: 1;
-    }
-
     .coord-box {
         background-color: rgba(212, 237, 218, 0.8);
         color: #155724;
-        padding: 0px 10px;
+        padding: 5px 8px;
         border-radius: 5px;
         font-size: 0.75em;
         border: 1px solid #c3e6cb;
-        display: flex;
-        align-items: center;
-        height: 31px;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -221,17 +195,20 @@ if donnees_carte.get("last_clicked") and not donnees_carte.get("last_object_clic
         st.session_state[f"libelle_{st.session_state.form_count}"] = ""
         st.rerun()
 
-# --- 7. FORMULAIRE ALIGNÉ (FLEXBOX) ---
-st.markdown('<div class="mobile-row">', unsafe_allow_html=True)
-st.markdown('<div class="mobile-label">Libellé</div>', unsafe_allow_html=True)
+# --- 7. FORMULAIRE 3 COLONNES ---
+c_lab, c_inp, c_pts = st.columns([0.4, 5, 1.5])
 
-libelle = st.text_input("Libellé", key=f"libelle_{st.session_state.form_count}", label_visibility="collapsed")
+with c_lab:
+    st.markdown('<div class="valign">Libellé</div>', unsafe_allow_html=True)
 
-if st.session_state.clic:
-    st.markdown(f'<div class="coord-box">📍 {st.session_state.clic["lat"]:.5f}, {st.session_state.clic["lng"]:.5f}</div>', unsafe_allow_html=True)
-else:
-    st.markdown('<div class="coord-box" style="background:none; border:1px dashed #ccc; color:#ccc;">Attente...</div>', unsafe_allow_html=True)
-st.markdown('</div>', unsafe_allow_html=True)
+with c_inp:
+    libelle = st.text_input("Libellé", key=f"libelle_{st.session_state.form_count}", label_visibility="collapsed")
+
+with c_pts:
+    if st.session_state.clic:
+        st.markdown(f'<div class="coord-box">📍 {st.session_state.clic["lat"]:.5f}, {st.session_state.clic["lng"]:.5f}</div>', unsafe_allow_html=True)
+    else:
+        st.markdown('<div class="coord-box" style="background-color: transparent; border: 1px dashed #ccc; color: #ccc;">Attente...</div>', unsafe_allow_html=True)
 
 # --- 8. ACTIONS ---
 if st.session_state.edit_idx is not None:
