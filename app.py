@@ -27,10 +27,11 @@ def verifier_mot_de_passe():
         return False
     return True
 
-# --- ACTIVATION DU MOT DE PASSE ---
+# --- LIGNE À AJOUTER POUR ACTIVER LE MOT DE PASSE ---
 if not verifier_mot_de_passe():
     st.stop()
 
+# --- LA SUITE DU CODE (S'exécute uniquement après connexion) ---
 try:
     GITHUB_TOKEN = st.secrets["GITHUB_TOKEN"]
     REPO_OWNER = st.secrets["REPO_OWNER"]
@@ -117,7 +118,7 @@ else:
 
 st.write("---")
 
-# --- 5. STYLE CSS ---
+# --- 5. STYLE CSS (POUR CENTRAGE LIBELLÉ) ---
 st.markdown("""
     <style>
     [data-testid="stVerticalBlock"] > div {
@@ -225,7 +226,7 @@ if donnees_carte.get("last_clicked") and not donnees_carte.get("last_object_clic
         st.session_state[f"libelle_{st.session_state.form_count}"] = ""
         st.rerun()
 
-# --- 7. FORMULAIRE ALIGNÉ ---
+# --- 7. FORMULAIRE ALIGNÉ (FLEXBOX) ---
 st.markdown('<div class="mobile-row">', unsafe_allow_html=True)
 st.markdown('<div class="mobile-label">Libellé</div>', unsafe_allow_html=True)
 
