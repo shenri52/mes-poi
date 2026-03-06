@@ -25,6 +25,7 @@ def lister_geojson_github():
     headers = {"Authorization": f"token {GITHUB_TOKEN}"}
     r = requests.get(url, headers=headers)
     if r.status_code == 200:
+        # On garde le nom complet pour le fichier mais on peut filtrer l'affichage
         return [f['name'] for f in r.json() if f['name'].endswith('.geojson')]
     return []
 
@@ -52,6 +53,8 @@ st.title("📍 GéoCollect de mes POI")
 if 'clic' not in st.session_state: st.session_state.clic = None
 if 'mode_action' not in st.session_state: st.session_state.mode_action = "Existant"
 if 'last_created' not in st.session_state: st.session_state.last_created = None
+# Clé pour reset le formulaire
+if 'form_count' not in st.session_state: st.session_state.form_count = 0
 
 col_saisie, col_carte = st.columns([1, 2])
 
@@ -61,27 +64,35 @@ with col_saisie:
     idx_mode = modes.index(st.session_state.mode_action)
     st.session_state.mode_action = st.radio("Action", modes, index=idx_mode, horizontal=True, key="radio_mode")
     
-    existing_data = None # Pour stocker les points à afficher
+    existing_data = None 
     
     if st.session_state.mode_action == "Nouveau":
         nom_saisi = st.text_input("Nom du nouveau fichier (ex: velos)", "").strip()
         file_name = f"{nom_saisi}.geojson" if nom_saisi else None
     else:
         liste_fichiers = lister_geojson_github()
+        # Création d'un dictionnaire pour afficher sans l'extension
+        dict_affichage = {f: f.replace('.geojson', '') for f in liste_fichiers}
+        
         index_defaut = 0
         if st.session_state.last_created in liste_fichiers:
             index_defaut = liste_fichiers.index(st.session_state.last_created)
         
-        file_name = st.selectbox("Choisir un fichier existant", liste_fichiers, index=index_defaut)
+        file_name = st.selectbox(
+            "Choisir un jeu de donnée existant", 
+            options=liste_fichiers, 
+            format_func=lambda x: dict_affichage[x],
+            index=index_defaut
+        )
         
-        # CHARGEMENT DES DONNÉES EXISTANTES
         if file_name:
             existing_data, _ = api_github(file_name)
 
     st.write("---")
     st.subheader("✍️ Saisie")
-    st.info("💡 Veuillez cliquer sur la carte pour indiquer la localisation du point.")
-    libelle = st.text_input("Libellé du point", key="input_libelle")
+    st.info("💡 Cliquer sur la carte pour indiquer la localisation.")
+    # Utilisation d'une clé dynamique pour forcer le reset
+    libelle = st.text_input("Libellé du point", key=f"libelle_{st.session_state.form_count}")
     date_du_jour = datetime.now().strftime("%Y-%m-%d")
 
     if st.session_state.clic:
@@ -108,7 +119,10 @@ with col_saisie:
                 if st.session_state.mode_action == "Nouveau":
                     st.session_state.last_created = file_name
                     st.session_state.mode_action = "Existant"
+                
                 st.session_state.clic = None
+                # Incrémenter pour vider le champ texte au prochain rerun
+                st.session_state.form_count += 1
                 st.rerun()
         else:
             st.error("Données manquantes (Fichier, Libellé ou Clic).")
@@ -117,7 +131,6 @@ with col_carte:
     m = folium.Map(location=[46.6, 2.2], zoom_start=5)
     LocateControl(auto_start=False).add_to(m)
     
-    # AFFICHAGE DES POINTS EXISTANTS (en bleu)
     if existing_data and "features" in existing_data:
         for feature in existing_data["features"]:
             coords = feature["geometry"]["coordinates"]
@@ -127,7 +140,6 @@ with col_carte:
                 icon=folium.Icon(color="blue", icon="info-sign")
             ).add_to(m)
     
-    # NOUVEAU CLIC (en rouge)
     if st.session_state.clic:
         folium.Marker([st.session_state.clic['lat'], st.session_state.clic['lng']], 
                       icon=folium.Icon(color="red", icon="star")).add_to(m)
