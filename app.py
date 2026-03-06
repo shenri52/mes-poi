@@ -49,7 +49,6 @@ def api_github(file_path, data=None, sha=None, methode="GET"):
 # --- 3. INTERFACE ---
 st.title("📍 GéoCollect de mes POI")
 
-# Initialisation des états
 if 'clic' not in st.session_state: st.session_state.clic = None
 if 'mode_action' not in st.session_state: st.session_state.mode_action = "Existant"
 if 'last_created' not in st.session_state: st.session_state.last_created = None
@@ -57,8 +56,12 @@ if 'last_created' not in st.session_state: st.session_state.last_created = None
 col_saisie, col_carte = st.columns([1, 2])
 
 with col_saisie:
-    st.subheader("📂 Sélection du jeu de données")
-    st.session_state.mode_action = st.radio("Action", ["Existant", "Nouveau"], horizontal=True, key="radio_mode")
+    st.subheader("🗺️ Couche")
+    modes = ["Existant", "Nouveau"]
+    idx_mode = modes.index(st.session_state.mode_action)
+    st.session_state.mode_action = st.radio("Action", modes, index=idx_mode, horizontal=True, key="radio_mode")
+    
+    existing_data = None # Pour stocker les points à afficher
     
     if st.session_state.mode_action == "Nouveau":
         nom_saisi = st.text_input("Nom du nouveau fichier (ex: velos)", "").strip()
@@ -70,9 +73,14 @@ with col_saisie:
             index_defaut = liste_fichiers.index(st.session_state.last_created)
         
         file_name = st.selectbox("Choisir un fichier existant", liste_fichiers, index=index_defaut)
+        
+        # CHARGEMENT DES DONNÉES EXISTANTES
+        if file_name:
+            existing_data, _ = api_github(file_name)
 
     st.write("---")
     st.subheader("✍️ Saisie")
+    st.info("💡 Veuillez cliquer sur la carte pour indiquer la localisation du point.")
     libelle = st.text_input("Libellé du point", key="input_libelle")
     date_du_jour = datetime.now().strftime("%Y-%m-%d")
 
@@ -97,11 +105,9 @@ with col_saisie:
             
             if api_github(file_name, data=data, sha=sha, methode="PUT"):
                 st.success("Enregistré sur GitHub !")
-                # Logique de bascule après création
                 if st.session_state.mode_action == "Nouveau":
                     st.session_state.last_created = file_name
                     st.session_state.mode_action = "Existant"
-                
                 st.session_state.clic = None
                 st.rerun()
         else:
@@ -109,11 +115,22 @@ with col_saisie:
 
 with col_carte:
     m = folium.Map(location=[46.6, 2.2], zoom_start=5)
-    # Bouton pour zoomer sur sa position
     LocateControl(auto_start=False).add_to(m)
     
+    # AFFICHAGE DES POINTS EXISTANTS (en bleu)
+    if existing_data and "features" in existing_data:
+        for feature in existing_data["features"]:
+            coords = feature["geometry"]["coordinates"]
+            folium.Marker(
+                [coords[1], coords[0]], 
+                popup=feature["properties"].get("libelle", "Sans nom"),
+                icon=folium.Icon(color="blue", icon="info-sign")
+            ).add_to(m)
+    
+    # NOUVEAU CLIC (en rouge)
     if st.session_state.clic:
-        folium.Marker([st.session_state.clic['lat'], st.session_state.clic['lng']]).add_to(m)
+        folium.Marker([st.session_state.clic['lat'], st.session_state.clic['lng']], 
+                      icon=folium.Icon(color="red", icon="star")).add_to(m)
     
     donnees_carte = st_folium(m, width="100%", height=500)
     if donnees_carte.get("last_clicked"):
