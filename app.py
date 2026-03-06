@@ -19,9 +19,8 @@ except KeyError:
     st.error("⚠️ Secrets GitHub manquants.")
     st.stop()
 
-# --- 2. FONCTIONS GITHUB (Ciblées sur le dossier /data/) ---
+# --- 2. FONCTIONS GITHUB ---
 def lister_geojson_github():
-    # On liste le contenu du dossier data
     url = f"https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/contents/data"
     headers = {"Authorization": f"token {GITHUB_TOKEN}"}
     r = requests.get(url, headers=headers)
@@ -30,7 +29,6 @@ def lister_geojson_github():
     return []
 
 def api_github(file_path, data=None, sha=None, methode="GET"):
-    # On force le chemin vers le dossier data
     full_path = f"data/{file_path}"
     url = f"https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/contents/{full_path}"
     headers = {"Authorization": f"token {GITHUB_TOKEN}", "Accept": "application/vnd.github.v3+json"}
@@ -52,8 +50,9 @@ def api_github(file_path, data=None, sha=None, methode="GET"):
 # --- 3. INTERFACE ---
 st.title("📍 GéoCollect de mes POI")
 
+# Initialisation propre des variables de session
 if 'clic' not in st.session_state: st.session_state.clic = None
-if 'mode_action' not in st.session_state: st.session_state.mode_action = "Existant"
+if 'mode_selection' not in st.session_state: st.session_state.mode_selection = "Existant"
 if 'last_created' not in st.session_state: st.session_state.last_created = None
 if 'form_count' not in st.session_state: st.session_state.form_count = 0
 
@@ -61,14 +60,18 @@ col_saisie, col_carte = st.columns([1, 2])
 
 with col_saisie:
     st.subheader("🗺️ Couche")
-    modes = ["Existant", "Nouveau"]
-    idx_defaut = modes.index(st.session_state.mode_action)
     
-    st.radio("Action", modes, index=idx_defaut, horizontal=True, key="mode_action")
+    # Correction : On utilise st.session_state.mode_selection pour piloter le radio
+    modes = ["Existant", "Nouveau"]
+    idx_defaut = modes.index(st.session_state.mode_selection)
+    
+    # On ne met pas de "key" identique au nom de la variable pour éviter l'erreur API
+    choice = st.radio("Action", modes, index=idx_defaut, horizontal=True)
+    st.session_state.mode_selection = choice
     
     existing_data = None 
     
-    if st.session_state.mode_action == "Nouveau":
+    if st.session_state.mode_selection == "Nouveau":
         nom_saisi = st.text_input("Nom du nouveau fichier (ex: velos)", "").strip()
         file_name = f"{nom_saisi}.geojson" if nom_saisi else None
     else:
@@ -117,9 +120,10 @@ with col_saisie:
             if api_github(file_name, data=data, sha=sha, methode="PUT"):
                 st.success("Enregistré sur GitHub !")
                 
-                if st.session_state.mode_action == "Nouveau":
+                # Mise à jour des états pour forcer la bascule au prochain tour
+                if st.session_state.mode_selection == "Nouveau":
                     st.session_state.last_created = file_name
-                    st.session_state.mode_action = "Existant"
+                    st.session_state.mode_selection = "Existant"
                 
                 st.session_state.clic = None
                 st.session_state.form_count += 1
