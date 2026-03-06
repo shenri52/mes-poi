@@ -96,10 +96,9 @@ else:
 
 st.write("---")
 
-# --- 5. STYLE CSS POUR COLLER LES ÉLÉMENTS ---
+# --- 5. STYLE CSS ---
 st.markdown("""
     <style>
-    /* Bouton Vue France collé à la carte */
     div.stButton > button:first-child {
         border-bottom-left-radius: 0px !important;
         border-bottom-right-radius: 0px !important;
@@ -110,25 +109,24 @@ st.markdown("""
         border-top-left-radius: 0px !important;
         border-top-right-radius: 0px !important;
     }
-    
-    /* Conteneur Flex pour Libellé + Input sur une seule ligne */
-    .custom-row {
+    /* Aligne le texte du libellé verticalement avec le champ */
+    .valign {
         display: flex;
         align-items: center;
-        gap: 10px;
-        margin-bottom: 5px;
-    }
-    .custom-label {
+        height: 100%;
+        padding-top: 5px;
         font-weight: bold;
-        min-width: 60px;
     }
-    .stTextInput {
-        flex-grow: 1;
-    }
-    /* Supprimer les marges par défaut de Streamlit */
-    div[data-testid="stVerticalBlock"] > div {
-        padding-top: 0rem !important;
-        padding-bottom: 0rem !important;
+    /* Style minimaliste pour la zone coordonnée */
+    .coord-box {
+        background-color: rgba(212, 237, 218, 0.4);
+        color: #155724;
+        padding: 6px 10px;
+        border-radius: 5px;
+        font-size: 0.85em;
+        border: 1px solid #c3e6cb;
+        text-align: center;
+        white-space: nowrap;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -169,7 +167,7 @@ donnees_carte = st_folium(
     key=f"map_{st.session_state.form_count}"
 )
 
-# --- LOGIQUE DE CLIC ---
+# --- 6. LOGIQUE DE CLIC ---
 if donnees_carte.get("last_object_clicked"):
     obj = donnees_carte["last_object_clicked"]
     st.session_state.map_center = [donnees_carte["center"]["lat"], donnees_carte["center"]["lng"]]
@@ -195,17 +193,21 @@ if donnees_carte.get("last_clicked") and not donnees_carte.get("last_object_clic
         st.session_state[f"libelle_{st.session_state.form_count}"] = ""
         st.rerun()
 
-# --- 7. FORMULAIRE RÉUSSI (LIBELLE ET TEXT_INPUT SUR UNE LIGNE SERRÉE) ---
-st.markdown('<div class="custom-row"><div class="custom-label">Libellé</div>', unsafe_allow_html=True)
-libelle = st.text_input("Libellé", key=f"libelle_{st.session_state.form_count}", label_visibility="collapsed")
-st.markdown('</div>', unsafe_allow_html=True)
+# --- 7. FORMULAIRE 3 COLONNES ---
+# Largeurs : Libellé (0.6), Saisie (flexible), Coordonnées (2.2)
+c_lab, c_inp, c_pts = st.columns([0.6, 5, 2.2])
 
-if st.session_state.clic:
-    st.markdown(f'''
-        <div style="background-color: rgba(212, 237, 218, 0.4); color: #155724; padding: 4px 10px; border-radius: 5px; margin-bottom: 8px; font-size: 0.85em; border: 1px solid #c3e6cb;">
-            📍 Point : {st.session_state.clic["lat"]:.5f}, {st.session_state.clic["lng"]:.5f}
-        </div>
-    ''', unsafe_allow_html=True)
+with c_lab:
+    st.markdown('<div class="valign">Libellé</div>', unsafe_allow_html=True)
+
+with c_inp:
+    libelle = st.text_input("Libellé", key=f"libelle_{st.session_state.form_count}", label_visibility="collapsed")
+
+with c_pts:
+    if st.session_state.clic:
+        st.markdown(f'<div class="coord-box">📍 {st.session_state.clic["lat"]:.5f}, {st.session_state.clic["lng"]:.5f}</div>', unsafe_allow_html=True)
+    else:
+        st.markdown('<div class="coord-box" style="background-color: transparent; border: 1px dashed #ccc; color: #ccc;">Attente clic...</div>', unsafe_allow_html=True)
 
 # --- 8. ACTIONS ---
 if st.session_state.edit_idx is not None:
