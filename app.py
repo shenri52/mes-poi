@@ -63,7 +63,7 @@ if 'map_zoom' not in st.session_state: st.session_state.map_zoom = 5
 if 'edit_idx' not in st.session_state: st.session_state.edit_idx = None
 if 'edit_label' not in st.session_state: st.session_state.edit_label = ""
 
-st.subheader("🗺️ Couche")
+st.markdown("###🗺️ Couche")
 modes = ["Existant", "Nouveau"]
 choice = st.radio("", modes, index=modes.index(st.session_state.mode_selection), horizontal=True)
 st.session_state.mode_selection = choice
@@ -93,7 +93,7 @@ else:
                     st.rerun()
 
 st.write("---")
-st.subheader("✍️ Saisir / modifier un point")
+st.markdown("###✍️ Saisir / modifier un point")
 
 # --- LE BOUTON DE RESET ---
 col_h, _ = st.columns([1, 3])
