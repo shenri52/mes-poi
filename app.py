@@ -49,6 +49,7 @@ def api_github(file_path, data=None, sha=None, methode="GET"):
 # --- 3. INTERFACE ---
 st.title("📍 GéoCollect de mes POI")
 
+# Initialisation
 if 'clic' not in st.session_state: st.session_state.clic = None
 if 'mode_action' not in st.session_state: st.session_state.mode_action = "Existant"
 if 'last_created' not in st.session_state: st.session_state.last_created = None
@@ -59,10 +60,11 @@ col_saisie, col_carte = st.columns([1, 2])
 with col_saisie:
     st.subheader("🗺️ Couche")
     modes = ["Existant", "Nouveau"]
-    idx_mode = modes.index(st.session_state.mode_action)
+    # On définit l'index par défaut basé sur l'état de session
+    idx_defaut = modes.index(st.session_state.mode_action)
     
-    # On utilise l'index pour forcer la sélection visuelle du bouton radio
-    st.session_state.mode_action = st.radio("Action", modes, index=idx_mode, horizontal=True, key="radio_mode")
+    # IMPORTANT : Le radio met à jour directement st.session_state.mode_action
+    st.radio("Action", modes, index=idx_defaut, horizontal=True, key="mode_action")
     
     existing_data = None 
     
@@ -73,15 +75,15 @@ with col_saisie:
         liste_fichiers = lister_geojson_github()
         dict_affichage = {f: f.replace('.geojson', '') for f in liste_fichiers}
         
-        index_defaut = 0
+        idx_fichier = 0
         if st.session_state.last_created in liste_fichiers:
-            index_defaut = liste_fichiers.index(st.session_state.last_created)
+            idx_fichier = liste_fichiers.index(st.session_state.last_created)
         
         file_name = st.selectbox(
             "Choisir un jeu de donnée existant", 
             options=liste_fichiers, 
             format_func=lambda x: dict_affichage[x],
-            index=index_defaut
+            index=idx_fichier
         )
         
         if file_name:
@@ -115,7 +117,7 @@ with col_saisie:
             if api_github(file_name, data=data, sha=sha, methode="PUT"):
                 st.success("Enregistré sur GitHub !")
                 
-                # BASCULE ET PRÉ-SÉLECTION
+                # FORCE LA BASCULE
                 if st.session_state.mode_action == "Nouveau":
                     st.session_state.last_created = file_name
                     st.session_state.mode_action = "Existant"
@@ -134,7 +136,6 @@ with col_carte:
         for feature in existing_data["features"]:
             coords = feature["geometry"]["coordinates"]
             prop = feature["properties"]
-            # Affichage Libellé + Date dans le popup
             folium.Marker(
                 [coords[1], coords[0]], 
                 popup=f"<b>{prop.get('libelle', 'Sans nom')}</b><br>Date: {prop.get('date', 'N/A')}",
