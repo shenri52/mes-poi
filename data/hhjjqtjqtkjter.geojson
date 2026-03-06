@@ -14,6 +14,20 @@
                 "libelle": "j<kjtkqw",
                 "date": "2026-03-06"
             }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    4.163818359375001,
+                    49.05227025601607
+                ]
+            },
+            "properties": {
+                "libelle": "<sdg<sdhs<dh",
+                "date": "2026-03-06"
+            }
         }
     ]
 }
