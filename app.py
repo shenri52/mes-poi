@@ -111,7 +111,7 @@ st.markdown("""
         margin-bottom: -20px !important;
     }
     div.stButton > button:first-child {
-        margin-top: 5px !important;
+        margin-bottom: 1px !important;
         height: 38px;
         border-radius: 8px !important;
     }
@@ -125,7 +125,7 @@ st.markdown("""
     .coord-box {
         background-color: rgba(212, 237, 218, 0.8);
         color: #155724;
-        margin-bottom: 1px !important;
+        margin-top: 5px !important;
         padding: 5px 8px;
         border-radius: 5px;
         font-size: 0.75em;
