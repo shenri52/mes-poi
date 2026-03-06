@@ -1,0 +1,19 @@
+{
+    "type": "FeatureCollection",
+    "features": [
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    2.6367187500000004,
+                    48.42920055556841
+                ]
+            },
+            "properties": {
+                "libelle": "ddddddddd",
+                "date": "2026-03-06"
+            }
+        }
+    ]
+}
