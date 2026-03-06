@@ -126,6 +126,7 @@ st.markdown("""
         background-color: rgba(212, 237, 218, 0.8);
         color: #155724;
         margin-top: 5px !important;
+        margin-bottom: 5px !important;
         padding: 5px 8px;
         border-radius: 5px;
         font-size: 0.75em;
