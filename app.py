@@ -42,34 +42,37 @@ def api_github(file_path, data=None, sha=None, methode="GET"):
         return None, None
     elif methode == "PUT":
         content_encoded = base64.b64encode(json.dumps(data, indent=4).encode('utf-8')).decode('utf-8')
-        payload = {"message": f"📍 Ajout POI", "content": content_encoded, "branch": BRANCH}
+        payload = {"message": "📍 Ajout POI", "content": content_encoded, "branch": BRANCH}
         if sha: payload["sha"] = sha
         r = requests.put(url, json=payload, headers=headers)
         return r.status_code in [200, 201]
+    elif methode == "DELETE":
+        payload = {"message": f"🗑️ Suppression de {file_path}", "sha": sha, "branch": BRANCH}
+        r = requests.delete(url, json=payload, headers=headers)
+        return r.status_code == 200
 
 # --- 3. INTERFACE ---
 st.title("📍 GéoCollect de mes POI")
 
-# Initialisation propre des variables de session
 if 'clic' not in st.session_state: st.session_state.clic = None
 if 'mode_selection' not in st.session_state: st.session_state.mode_selection = "Existant"
 if 'last_created' not in st.session_state: st.session_state.last_created = None
 if 'form_count' not in st.session_state: st.session_state.form_count = 0
 
-col_saisie, col_carte = st.columns([1, 2])
+# Utilisation de colonnes qui s'empilent sur mobile
+col_saisie, col_carte = st.columns([1, 1.5])
 
 with col_saisie:
     st.subheader("🗺️ Couche")
-    
-    # Correction : On utilise st.session_state.mode_selection pour piloter le radio
     modes = ["Existant", "Nouveau"]
     idx_defaut = modes.index(st.session_state.mode_selection)
     
-    # On ne met pas de "key" identique au nom de la variable pour éviter l'erreur API
-    choice = st.radio("Action", modes, index=idx_defaut, horizontal=True)
+    # Radio sans libellé pour gagner de la place
+    choice = st.radio("", modes, index=idx_defaut, horizontal=True)
     st.session_state.mode_selection = choice
     
     existing_data = None 
+    current_sha = None
     
     if st.session_state.mode_selection == "Nouveau":
         nom_saisi = st.text_input("Nom du nouveau fichier (ex: velos)", "").strip()
@@ -90,7 +93,7 @@ with col_saisie:
         )
         
         if file_name:
-            existing_data, _ = api_github(file_name)
+            existing_data, current_sha = api_github(file_name)
 
     st.write("---")
     st.subheader("✍️ Saisie")
@@ -119,19 +122,26 @@ with col_saisie:
             
             if api_github(file_name, data=data, sha=sha, methode="PUT"):
                 st.success("Enregistré sur GitHub !")
-                
-                # Mise à jour des états pour forcer la bascule au prochain tour
                 if st.session_state.mode_selection == "Nouveau":
                     st.session_state.last_created = file_name
                     st.session_state.mode_selection = "Existant"
-                
                 st.session_state.clic = None
                 st.session_state.form_count += 1
                 st.rerun()
         else:
-            st.error("Données manquantes (Fichier, Libellé ou Clic).")
+            st.error("Données manquantes.")
+
+    # --- NOUVEAU : SUPPRESSION ---
+    if st.session_state.mode_selection == "Existant" and file_name:
+        st.write("---")
+        if st.button("🗑️ Supprimer ce fichier", use_container_width=True, type="secondary"):
+            if api_github(file_name, sha=current_sha, methode="DELETE"):
+                st.warning(f"Fichier {file_name} supprimé.")
+                st.session_state.last_created = None
+                st.rerun()
 
 with col_carte:
+    # Hauteur réduite pour mobile (350px au lieu de 500px)
     m = folium.Map(location=[46.6, 2.2], zoom_start=5)
     LocateControl(auto_start=False).add_to(m)
     
@@ -149,7 +159,7 @@ with col_carte:
         folium.Marker([st.session_state.clic['lat'], st.session_state.clic['lng']], 
                       icon=folium.Icon(color="red", icon="star")).add_to(m)
     
-    donnees_carte = st_folium(m, width="100%", height=500)
+    donnees_carte = st_folium(m, width="100%", height=350)
     if donnees_carte.get("last_clicked"):
         if st.session_state.clic != donnees_carte["last_clicked"]:
             st.session_state.clic = donnees_carte["last_clicked"]
