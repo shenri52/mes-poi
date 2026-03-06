@@ -10,7 +10,7 @@ from folium.plugins import LocateControl, Fullscreen
 # --- 1. CONFIGURATION ET SECRETS ---
 st.set_page_config(page_title="GéoCollect", page_icon="📍", layout="wide")
 
-# --- FONCTION DE PROTECTION ---
+# --- FONCTION DE PROTECTION (SÉCURITÉ) ---
 def verifier_mot_de_passe():
     if "authentifie" not in st.session_state:
         st.session_state["authentifie"] = False
@@ -27,11 +27,11 @@ def verifier_mot_de_passe():
         return False
     return True
 
-# --- LIGNE À AJOUTER POUR ACTIVER LE MOT DE PASSE ---
+# --- APPEL DE LA SÉCURITÉ ---
 if not verifier_mot_de_passe():
     st.stop()
 
-# --- LA SUITE DU CODE (S'exécute uniquement après connexion) ---
+# --- RESTE DU CODE GÉOCOLLECT INCHANGÉ ---
 try:
     GITHUB_TOKEN = st.secrets["GITHUB_TOKEN"]
     REPO_OWNER = st.secrets["REPO_OWNER"]
@@ -111,14 +111,14 @@ else:
     with col_del:
         if file_name:
             existing_data, current_sha = api_github(file_name)
-            if st.button("🗑️", use_container_width=True):
+            if st.button("🗑️", key="btn_del_file", use_container_width=True):
                 if api_github(file_name, sha=current_sha, methode="DELETE"):
                     st.session_state.last_created = None
                     st.rerun()
 
 st.write("---")
 
-# --- 5. STYLE CSS (POUR CENTRAGE LIBELLÉ) ---
+# --- 5. STYLE CSS (TES RÉGLAGES D'ORIGINE) ---
 st.markdown("""
     <style>
     [data-testid="stVerticalBlock"] > div {
@@ -137,29 +137,22 @@ st.markdown("""
         height: 38px;
         border-radius: 8px !important;
     }
-    .mobile-row {
-        display: flex !important;
-        align-items: center !important;
-        gap: 10px !important;
-        width: 100%;
-        margin-top: 5px;
-    }
-    .mobile-label {
+    .valign {
+        display: flex;
+        align-items: center;
+        height: 100%;
+        padding-top: 8px;
         font-weight: bold;
-        white-space: nowrap;
-    }
-    div[data-testid="stTextInput"] {
-        flex-grow: 1;
-        margin: 0px !important;
     }
     .coord-box {
         background-color: rgba(212, 237, 218, 0.8);
         color: #155724;
+        margin-top: 5px !important;
+        margin-bottom: 5px !important;
         padding: 5px 8px;
         border-radius: 5px;
         font-size: 0.75em;
         border: 1px solid #c3e6cb;
-        white-space: nowrap;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -226,18 +219,20 @@ if donnees_carte.get("last_clicked") and not donnees_carte.get("last_object_clic
         st.session_state[f"libelle_{st.session_state.form_count}"] = ""
         st.rerun()
 
-# --- 7. FORMULAIRE ALIGNÉ (FLEXBOX) ---
-st.markdown('<div class="mobile-row">', unsafe_allow_html=True)
-st.markdown('<div class="mobile-label">Libellé</div>', unsafe_allow_html=True)
+# --- 7. FORMULAIRE 3 COLONNES (RETOUR À TON ÉTAT INITIAL) ---
+c_lab, c_inp, c_pts = st.columns([0.4, 5, 1.5])
 
-libelle = st.text_input("Libellé", key=f"libelle_{st.session_state.form_count}", label_visibility="collapsed")
+with c_lab:
+    st.markdown('<div class="valign">Libellé</div>', unsafe_allow_html=True)
 
-if st.session_state.clic:
-    st.markdown(f'<div class="coord-box">📍 {st.session_state.clic["lat"]:.5f}, {st.session_state.clic["lng"]:.5f}</div>', unsafe_allow_html=True)
-else:
-    st.markdown('<div class="coord-box" style="background:none; border:1px dashed #ccc; color:#ccc;">Attente...</div>', unsafe_allow_html=True)
+with c_inp:
+    libelle = st.text_input("Libellé", key=f"libelle_{st.session_state.form_count}", label_visibility="collapsed")
 
-st.markdown('</div>', unsafe_allow_html=True)
+with c_pts:
+    if st.session_state.clic:
+        st.markdown(f'<div class="coord-box">📍 {st.session_state.clic["lat"]:.5f}, {st.session_state.clic["lng"]:.5f}</div>', unsafe_allow_html=True)
+    else:
+        st.markdown('<div class="coord-box" style="background-color: transparent; border: 1px dashed #ccc; color: #ccc;">Attente...</div>', unsafe_allow_html=True)
 
 # --- 8. ACTIONS ---
 if st.session_state.edit_idx is not None:
