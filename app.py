@@ -95,7 +95,6 @@ else:
 
 st.write("---")
 st.subheader("✍️ Saisie")
-st.markdown('<div style="background-color: #d1e7ff; color: #004085; padding: 5px 10px; border-radius: 5px; font-size: 14px; margin-bottom: 10px;">💡 Cliquer la carte pour localiser puis saisir le libellé.</div>', unsafe_allow_html=True)
 
 # --- CARTE ---
 m = folium.Map(location=st.session_state.map_center, zoom_start=st.session_state.map_zoom)
@@ -106,11 +105,13 @@ if existing_data and "features" in existing_data:
     for i, feature in enumerate(existing_data["features"]):
         coords = feature["geometry"]["coordinates"]
         prop = feature["properties"]
-        nom_point = prop.get('libelle', 'Sans nom')
+        # On s'assure que le libellé est une chaîne propre
+        nom_affichage = str(prop.get('libelle', 'Sans nom'))
+        
         folium.Marker(
             [coords[1], coords[0]], 
-            popup=folium.Popup(f"<b>{nom_point}</b>", max_width=200),
-            tooltip=nom_point, # Ajout du survol
+            popup=folium.Popup(f"<b>{nom_affichage}</b>", max_width=200),
+            tooltip=nom_affichage,
             icon=folium.Icon(color="blue", icon="info-sign")
         ).add_to(m)
 
@@ -122,7 +123,7 @@ if st.session_state.clic:
 
 donnees_carte = st_folium(m, width="100%", height=350)
 
-# SAUVEGARDE DU ZOOM ET CENTRE
+# SAUVEGARDE CENTRE ET ZOOM
 if donnees_carte.get("center"):
     st.session_state.map_center = [donnees_carte["center"]["lat"], donnees_carte["center"]["lng"]]
 if donnees_carte.get("zoom"):
@@ -130,16 +131,16 @@ if donnees_carte.get("zoom"):
 
 # LOGIQUE DE DETECTION DU CLIC SUR UN POINT
 if donnees_carte.get("last_object_clicked"):
-    lat_click = donnees_carte["last_object_clicked"]["lat"]
-    lng_click = donnees_carte["last_object_clicked"]["lng"]
+    lat_c = donnees_carte["last_object_clicked"]["lat"]
+    lng_c = donnees_carte["last_object_clicked"]["lng"]
     if existing_data:
         for i, feat in enumerate(existing_data["features"]):
             coords = feat["geometry"]["coordinates"]
-            if round(coords[1], 5) == round(lat_click, 5) and round(coords[0], 5) == round(lng_click, 5):
+            if round(coords[1], 5) == round(lat_c, 5) and round(coords[0], 5) == round(lng_c, 5):
                 if st.session_state.edit_idx != i:
                     st.session_state.edit_idx = i
-                    st.session_state.edit_label = feat["properties"].get("libelle", "Sans nom")
-                    st.session_state.clic = {"lat": lat_click, "lng": lng_click}
+                    st.session_state.edit_label = str(feat["properties"].get("libelle", ""))
+                    st.session_state.clic = {"lat": lat_c, "lng": lng_c}
                     st.session_state[f"libelle_{st.session_state.form_count}"] = st.session_state.edit_label
                     st.rerun()
 
@@ -157,12 +158,7 @@ libelle = st.text_input("Libellé", key=f"libelle_{st.session_state.form_count}"
 
 if st.session_state.clic:
     st.markdown(f'''
-        <div style="background-color: rgba(212, 237, 218, 0.8); 
-                    color: #155724; 
-                    padding: 10px; 
-                    border: 1px solid rgba(195, 230, 203, 0.8); 
-                    border-radius: 5px; 
-                    margin-bottom: 10px;">
+        <div style="background-color: rgba(212, 237, 218, 0.8); color: #155724; padding: 10px; border-radius: 5px; margin-bottom: 10px;">
             📍 Point sélectionné : {st.session_state.clic["lat"]:.5f}, {st.session_state.clic["lng"]:.5f}
         </div>
     ''', unsafe_allow_html=True)
