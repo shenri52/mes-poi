@@ -94,7 +94,6 @@ else:
                     st.rerun()
 
 st.write("---")
-st.subheader("✍️ Saisie")
 
 # --- CARTE ---
 m = folium.Map(
@@ -103,7 +102,7 @@ m = folium.Map(
     zoom_control=True
 )
 
-# BOUTON VUE GLOBALE intégré
+# Bouton Vue Globale
 home_js = """
 <script>
 setTimeout(function() {
@@ -186,6 +185,7 @@ if donnees_carte.get("last_clicked") and not donnees_carte.get("last_object_clic
         st.rerun()
 
 # --- FORMULAIRE ---
+st.subheader("✍️ Saisie")
 libelle = st.text_input("Libellé", key=f"libelle_{st.session_state.form_count}")
 
 if st.session_state.clic:
@@ -216,6 +216,7 @@ if st.session_state.edit_idx is not None:
                 st.session_state.form_count += 1
                 st.rerun()
 else:
+    # CORRECTION : Le bouton Sauvegarder utilise maintenant une logique qui évite le double clic
     if st.button("🚀 Sauvegarder", use_container_width=True):
         if file_name and libelle and st.session_state.clic:
             data_save, sha_save = api_github(file_name)
@@ -228,4 +229,7 @@ else:
             data_save['features'].append(nouveau_poi)
             if api_github(file_name, data=data_save, sha=sha_save, methode="PUT"):
                 st.session_state.clic = None
+                # Réinitialisation forcée du libellé pour éviter le double clic
+                st.session_state[f"libelle_{st.session_state.form_count}"] = ""
                 st.session_state.form_count += 1
+                st.rerun()
