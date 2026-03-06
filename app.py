@@ -65,7 +65,7 @@ if 'edit_label' not in st.session_state: st.session_state.edit_label = ""
 
 st.markdown("#### 🗺️ Couche")
 modes = ["Existant", "Nouveau"]
-choice = st.radio("", modes, index=modes.index(st.session_state.mode_selection), horizontal=True, label_visibility="collapsed")
+choice = st.radio("", modes, index=modes.index(st.session_state.mode_selection), horizontal=True, label_visibility="collapsed", key="radio_mode")
 st.session_state.mode_selection = choice
 
 existing_data = None 
@@ -78,6 +78,7 @@ if st.session_state.mode_selection == "Nouveau":
 else:
     liste_fichiers = lister_geojson_github()
     dict_affichage = {f: f.replace('.geojson', '') for f in liste_fichiers}
+    
     idx_fichier = 0
     if st.session_state.last_created in liste_fichiers:
         idx_fichier = liste_fichiers.index(st.session_state.last_created)
@@ -95,23 +96,7 @@ else:
 
 st.write("---")
 
-# --- STYLE CSS (Bouton collé à la carte) ---
-st.markdown("""
-    <style>
-    div.stButton > button:first-child {
-        border-bottom-left-radius: 0px !important;
-        border-bottom-right-radius: 0px !important;
-        margin-bottom: -15px !important;
-        height: 45px;
-    }
-    iframe {
-        border-top-left-radius: 0px !important;
-        border-top-right-radius: 0px !important;
-    }
-    </style>
-""", unsafe_allow_html=True)
-
-st.markdown("### ✍️ Saisir / Modifier un point")
+st.markdown("### ✍️ Saisir ou modifier")
 
 # --- BOUTON VUE FRANCE ---
 col_h, _ = st.columns([1, 4])
@@ -144,7 +129,7 @@ if st.session_state.clic:
     folium.Marker([st.session_state.clic['lat'], st.session_state.clic['lng']], icon=folium.Icon(color="red", icon="star")).add_to(m)
 
 donnees_carte = st_folium(
-    m, width="100%", height=350,
+    m, width="100%", height=325,
     center=st.session_state.map_center, zoom=st.session_state.map_zoom,
     key=f"map_{st.session_state.form_count}"
 )
@@ -175,18 +160,13 @@ if donnees_carte.get("last_clicked") and not donnees_carte.get("last_object_clic
         st.session_state[f"libelle_{st.session_state.form_count}"] = ""
         st.rerun()
 
-# --- FORMULAIRE (Libellé aligné) ---
-st.write("")
-col_lab, col_inp = st.columns([1, 4])
-with col_lab:
-    st.markdown('<p style="padding-top: 10px; font-weight: bold;">Libellé :</p>', unsafe_allow_html=True)
-with col_inp:
-    libelle = st.text_input("", key=f"libelle_{st.session_state.form_count}", label_visibility="collapsed")
-
+# --- FORMULAIRE (Remis en dessous sur toute la largeur) ---
 if st.session_state.clic:
-    st.markdown(f'<div style="background-color: rgba(212, 237, 218, 0.8); color: #155724; padding: 10px; border-radius: 5px; margin-bottom: 10px;">📍 Point : {st.session_state.clic["lat"]:.5f}, {st.session_state.clic["lng"]:.5f}</div>', unsafe_allow_html=True)
+    st.markdown(f'<div style="background-color: rgba(212, 237, 218, 0.8); color: #155724; padding: 10px; border-radius: 5px; margin-top: 10px; margin-bottom: 10px;">📍 Point : {st.session_state.clic["lat"]:.5f}, {st.session_state.clic["lng"]:.5f}</div>', unsafe_allow_html=True)
 
-# --- ACTIONS (Modifier / Supprimer / Sauvegarder) ---
+libelle = st.text_input("Libellé", key=f"libelle_{st.session_state.form_count}")
+
+# --- ACTIONS ---
 if st.session_state.edit_idx is not None:
     c1, c2 = st.columns(2)
     with c1:
@@ -219,6 +199,7 @@ else:
             }
             data_save['features'].append(nouveau_poi)
             if api_github(file_name, data=data_save, sha=sha_save, methode="PUT"):
+                st.session_state.mode_selection = "Existant"
                 st.session_state.last_created = file_name
                 st.session_state.clic = None
                 st.session_state.form_count += 1
