@@ -175,14 +175,7 @@ if donnees_carte.get("last_clicked") and not donnees_carte.get("last_object_clic
         st.rerun()
 
 # --- FORMULAIRE ---
-col_lab, col_inp = st.columns([1, 4]) # 1 pour le texte, 4 pour la zone de saisie
-
-with col_lab:
-    # On ajoute un padding vertical pour aligner le texte avec le champ
-    st.markdown('<p style="padding-top: 10px; font-weight: bold;">Libellé :</p>', unsafe_allow_html=True)
-
-with col_inp:
-    libelle = st.text_input("", key=f"libelle_{st.session_state.form_count}", label_visibility="collapsed")
+libelle = st.text_input("Libellé", key=f"libelle_{st.session_state.form_count}")
 
 if st.session_state.clic:
     st.markdown(f'''
