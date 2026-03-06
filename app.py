@@ -6,6 +6,7 @@ from datetime import datetime
 import folium
 from streamlit_folium import st_folium
 from folium.plugins import LocateControl, Fullscreen
+from branca.element import Element
 
 # --- 1. CONFIGURATION ET SECRETS ---
 st.set_page_config(page_title="GéoCollect de mes POI", page_icon="📍", layout="wide")
@@ -54,7 +55,6 @@ def api_github(file_path, data=None, sha=None, methode="GET"):
 # --- 3. INTERFACE ---
 st.title("📍 GéoCollect")
 
-# Initialisation des états
 if 'clic' not in st.session_state: st.session_state.clic = None
 if 'mode_selection' not in st.session_state: st.session_state.mode_selection = "Existant"
 if 'last_created' not in st.session_state: st.session_state.last_created = None
@@ -103,35 +103,38 @@ m = folium.Map(
     zoom_control=True
 )
 
-# AJOUT DU BOUTON VUE GLOBALE (Maison)
-# On utilise une macro simple pour injecter le bouton dans le JS de Leaflet
-from branca.element import Element
-
-vue_globale_js = """
-    var zoomHome = L.Control.extend({
-        options: { position: 'topleft' },
-        onAdd: function (map) {
-            var container = L.DomUtil.create('div', 'leaflet-bar leaflet-control leaflet-control-custom');
-            container.style.backgroundColor = 'white';
-            container.style.width = '30px';
-            container.style.height = '30px';
-            container.style.display = 'flex';
-            container.style.alignItems = 'center';
-            container.style.justifyContent = 'center';
-            container.style.cursor = 'pointer';
-            container.innerHTML = '🏠';
-            container.title = 'Vue globale France';
-
-            container.onclick = function(){
-                map.setView([46.6, 2.2], 5);
+# Injection du bouton Maison (Vue Globale)
+vue_globale_js = Element("""
+    <script>
+    setTimeout(function() {
+        var maps = document.querySelectorAll('.leaflet-container');
+        maps.forEach(function(map_el) {
+            if (map_el._leaflet_map) {
+                var map = map_el._leaflet_map;
+                var ZoomHome = L.Control.extend({
+                    options: { position: 'topleft' },
+                    onAdd: function (map) {
+                        var container = L.DomUtil.create('div', 'leaflet-bar leaflet-control');
+                        container.style.backgroundColor = 'white';
+                        container.style.width = '30px';
+                        container.style.height = '30px';
+                        container.style.display = 'flex';
+                        container.style.alignItems = 'center';
+                        container.style.justifyContent = 'center';
+                        container.style.cursor = 'pointer';
+                        container.innerHTML = '<span style="font-size:18px;">🏠</span>';
+                        container.title = 'Vue globale France';
+                        container.onclick = function() { map.setView([46.6, 2.2], 5); };
+                        return container;
+                    }
+                });
+                map.addControl(new ZoomHome());
             }
-            return container;
-        }
-    });
-    map_fixed.addControl(new zoomHome());
-"""
-# On l'ajoute à la carte
-m.get_root().script.add_child(Element(vue_globale_js.replace("map_fixed", "map_fixed")))
+        });
+    }, 500);
+    </script>
+""")
+m.get_root().html.add_child(vue_globale_js)
 
 LocateControl(auto_start=False).add_to(m)
 Fullscreen(position="topright", force_separate_button=True).add_to(m)
@@ -155,20 +158,20 @@ if st.session_state.clic:
         icon=folium.Icon(color="red", icon="star")
     ).add_to(m)
 
-# Rendu de la carte
+# Rendu avec vue bloquée via session_state
 donnees_carte = st_folium(
     m, 
     width="100%", 
     height=350,
     center=st.session_state.map_center,
     zoom=st.session_state.map_zoom,
-    key="map_fixed"
+    key=f"map_{st.session_state.form_count}"
 )
 
-# LOGIQUE DE DETECTION ET SYNCHRO
+# LOGIQUE DE DETECTION ET BLOCAGE VUE
 if donnees_carte.get("last_object_clicked"):
     obj = donnees_carte["last_object_clicked"]
-    # On mémorise la vue actuelle pour ne pas bouger au rerun
+    # On mémorise la vue actuelle pour la figer au prochain rendu
     st.session_state.map_center = [donnees_carte["center"]["lat"], donnees_carte["center"]["lng"]]
     st.session_state.map_zoom = donnees_carte["zoom"]
     
