@@ -61,17 +61,15 @@ if 'form_count' not in st.session_state: st.session_state.form_count = 0
 if 'map_center' not in st.session_state: st.session_state.map_center = [46.6, 2.2]
 if 'map_zoom' not in st.session_state: st.session_state.map_zoom = 5
 
-# --- LOGIQUE DE SUPPRESSION (REPRISE DU CODE FONCTIONNEL) ---
+# --- LOGIQUE DE SUPPRESSION DE POINT ---
 if "delete_idx" in st.query_params and "file" in st.query_params:
     idx_to_del = int(st.query_params["delete_idx"])
     target_file = st.query_params["file"]
-    
     data, sha = api_github(target_file)
     if data and 0 <= idx_to_del < len(data["features"]):
         del data["features"][idx_to_del]
         if api_github(target_file, data=data, sha=sha, methode="PUT"):
             st.toast("Point supprimé")
-            # Retour au global lors d'une suppression
             st.session_state.map_center = [46.6, 2.2]
             st.session_state.map_zoom = 5
             st.query_params.clear()
@@ -80,7 +78,6 @@ if "delete_idx" in st.query_params and "file" in st.query_params:
 st.subheader("🗺️ Couche")
 modes = ["Existant", "Nouveau"]
 idx_defaut = modes.index(st.session_state.mode_selection)
-
 choice = st.radio("", modes, index=idx_defaut, horizontal=True)
 st.session_state.mode_selection = choice
 
@@ -93,6 +90,8 @@ if st.session_state.mode_selection == "Nouveau":
 else:
     liste_fichiers = lister_geojson_github()
     dict_affichage = {f: f.replace('.geojson', '') for f in liste_fichiers}
+    
+    # Gestion de l'index de sélection
     idx_fichier = 0
     if st.session_state.last_created in liste_fichiers:
         idx_fichier = liste_fichiers.index(st.session_state.last_created)
@@ -100,17 +99,20 @@ else:
     col_list, col_del = st.columns([3, 1])
     with col_list:
         file_name = st.selectbox("Choisir", options=liste_fichiers, format_func=lambda x: dict_affichage.get(x, x), index=idx_fichier, label_visibility="collapsed")
+    
     with col_del:
         if file_name:
             existing_data, current_sha = api_github(file_name)
-            if st.button("🗑️", use_container_width=True):
+            if st.button("🗑️ Couche", use_container_width=True):
                 if api_github(file_name, sha=current_sha, methode="DELETE"):
+                    # NETTOYAGE COMPLET POUR REPARTIR À ZÉRO
                     st.session_state.last_created = None
+                    if 'file_name' in locals(): del file_name
+                    st.toast("Couche supprimée")
                     st.rerun()
 
 st.write("---")
 st.subheader("✍️ Saisie")
-st.markdown('<div style="background-color: #d1e7ff; color: #004085; padding: 5px 10px; border-radius: 5px; font-size: 14px; margin-bottom: 10px;">💡 Cliquer la carte pour localiser puis saisir le libellé.</div>', unsafe_allow_html=True)
 
 # --- CARTE ---
 m = folium.Map(location=st.session_state.map_center, zoom_start=st.session_state.map_zoom)
@@ -121,28 +123,20 @@ if existing_data and "features" in existing_data:
     for i, feature in enumerate(existing_data["features"]):
         coords = feature["geometry"]["coordinates"]
         prop = feature["properties"]
-        
-        # On utilise window.top pour recharger toute l'appli
         delete_url = f"/?file={file_name}&delete_idx={i}"
-        
         html_popup = f"""
         <div style="font-family: sans-serif; min-width: 150px;">
             <b>{prop.get('libelle', 'Sans nom')}</b><br>
-            <small>Date: {prop.get('date', 'N/A')}</small><br><br>
             <button onclick="window.top.location.href='{delete_url}'" 
                     style="color:white; background-color:#d33; border:none; padding:8px; border-radius:4px; cursor:pointer; font-weight:bold; width:100%;">
                 🗑️ Supprimer ce point
             </button>
         </div>
         """
-        folium.Marker(
-            [coords[1], coords[0]], 
-            popup=folium.Popup(html_popup, max_width=250),
-            icon=folium.Icon(color="blue", icon="info-sign")
-        ).add_to(m)
+        folium.Marker([coords[1], coords[0]], popup=folium.Popup(html_popup, max_width=250)).add_to(m)
 
 if st.session_state.clic:
-    folium.Marker([st.session_state.clic['lat'], st.session_state.clic['lng']], icon=folium.Icon(color="red", icon="star")).add_to(m)
+    folium.Marker([st.session_state.clic['lat'], st.session_state.clic['lng']], icon=folium.Icon(color="red")).add_to(m)
 
 donnees_carte = st_folium(m, width="100%", height=350)
 
@@ -169,12 +163,9 @@ if st.button("🚀 Sauvegarder", use_container_width=True):
         data['features'].append(nouveau_poi)
         if api_github(file_name, data=data, sha=sha, methode="PUT"):
             st.success("Enregistré !")
-            # On reste sur le zoom actuel (pas de modif session_state)
             if st.session_state.mode_selection == "Nouveau":
                 st.session_state.last_created = file_name
                 st.session_state.mode_selection = "Existant"
             st.session_state.clic = None
             st.session_state.form_count += 1
             st.rerun()
-    else:
-        st.error("Données manquantes.")
