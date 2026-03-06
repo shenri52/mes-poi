@@ -101,8 +101,8 @@ st.markdown("""
     <style>
     /* 1. Réduire l'espace global entre tous les blocs Streamlit */
     [data-testid="stVerticalBlock"] > div {
-        padding-top: 0.1rem !important;
-        padding-bottom: 0.1rem !important;
+        padding-top: 0rem !important;
+        padding-bottom: 0rem !important;
     }
 
     /* 2. Supprimer la marge spécifique avant et après la carte (iframe) */
