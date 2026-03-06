@@ -109,6 +109,8 @@ st.markdown("""
         border-top-left-radius: 0px !important;
         border-top-right-radius: 0px !important;
     }
+    /* Réduction drastique de l'espace vertical entre widgets */
+    .stTextInput { margin-top: -10px; }
     </style>
 """, unsafe_allow_html=True)
 
@@ -174,19 +176,19 @@ if donnees_carte.get("last_clicked") and not donnees_carte.get("last_object_clic
         st.session_state[f"libelle_{st.session_state.form_count}"] = ""
         st.rerun()
 
-# --- 7. FORMULAIRE RÉDUIT ---
-col_l, col_i = st.columns([1, 5])
-with col_l:
-    st.markdown('<p style="padding-top: 10px; font-weight: bold;">Libellé</p>', unsafe_allow_html=True)
-with col_i:
-    libelle = st.text_input("", key=f"libelle_{st.session_state.form_count}", label_visibility="collapsed")
-
+# --- 7. FORMULAIRE COMPACT (Libellé collé au champ) ---
 if st.session_state.clic:
     st.markdown(f'''
-        <div style="background-color: rgba(212, 237, 218, 0.8); color: #155724; padding: 5px 10px; border-radius: 5px; margin-bottom: 15px; font-size: 0.9em;">
+        <div style="background-color: rgba(212, 237, 218, 0.4); color: #155724; padding: 4px 10px; border-radius: 5px; margin-bottom: 8px; font-size: 0.85em; border: 1px solid #c3e6cb;">
             📍 Point : {st.session_state.clic["lat"]:.5f}, {st.session_state.clic["lng"]:.5f}
         </div>
     ''', unsafe_allow_html=True)
+
+col_lab, col_inp = st.columns([0.8, 5])
+with col_lab:
+    st.markdown('<p style="padding-top: 8px; font-weight: bold; margin-bottom: 0px;">Libellé</p>', unsafe_allow_html=True)
+with col_inp:
+    libelle = st.text_input("", key=f"libelle_{st.session_state.form_count}", label_visibility="collapsed")
 
 # --- 8. ACTIONS ---
 if st.session_state.edit_idx is not None:
