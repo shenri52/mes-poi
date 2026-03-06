@@ -106,8 +106,6 @@ if existing_data and "features" in existing_data:
     for i, feature in enumerate(existing_data["features"]):
         coords = feature["geometry"]["coordinates"]
         prop = feature["properties"]
-        
-        # On garde les étiquettes pour la lecture simple
         folium.Marker(
             [coords[1], coords[0]], 
             popup=folium.Popup(f"<b>{prop.get('libelle', 'Sans nom')}</b>", max_width=200),
@@ -122,23 +120,22 @@ if st.session_state.clic:
 
 donnees_carte = st_folium(m, width="100%", height=350)
 
-# LOGIQUE DE DETECTION DU CLIC SUR UN POINT
+# LOGIQUE DE DETECTION SANS MODIFIER LE ZOOM
 if donnees_carte.get("last_object_clicked"):
     lat_click = donnees_carte["last_object_clicked"]["lat"]
     lng_click = donnees_carte["last_object_clicked"]["lng"]
-    
-    # On cherche le point correspondant dans nos données locales
     if existing_data:
         for i, feat in enumerate(existing_data["features"]):
             coords = feat["geometry"]["coordinates"]
             if round(coords[1], 5) == round(lat_click, 5) and round(coords[0], 5) == round(lng_click, 5):
-                st.session_state.edit_idx = i
-                st.session_state.edit_label = feat["properties"].get("libelle", "")
-                st.session_state.clic = {"lat": lat_click, "lng": lng_click}
-                st.rerun()
+                if st.session_state.edit_idx != i:
+                    st.session_state.edit_idx = i
+                    st.session_state.edit_label = feat["properties"].get("libelle", "")
+                    st.session_state.clic = {"lat": lat_click, "lng": lng_click}
+                    st.rerun()
 
-# Clic sur la carte (vide) pour un nouveau point
 if donnees_carte.get("last_clicked") and not donnees_carte.get("last_object_clicked"):
+    # On ne met à jour le centre/zoom que lors d'un clic sur la carte, pas sur un point
     st.session_state.map_center = [donnees_carte["center"]["lat"], donnees_carte["center"]["lng"]]
     st.session_state.map_zoom = donnees_carte["zoom"]
     if st.session_state.clic != donnees_carte["last_clicked"]:
@@ -148,8 +145,7 @@ if donnees_carte.get("last_clicked") and not donnees_carte.get("last_object_clic
         st.rerun()
 
 # --- FORMULAIRE ---
-valeur_input = st.session_state.edit_label if st.session_state.edit_idx is not None else ""
-libelle = st.text_input("Libellé", value=valeur_input, key=f"libelle_{st.session_state.form_count}")
+libelle = st.text_input("Libellé", value=st.session_state.edit_label, key=f"libelle_{st.session_state.form_count}")
 
 if st.session_state.clic:
     st.markdown(f'''
@@ -165,7 +161,6 @@ if st.session_state.clic:
 
 date_du_jour = datetime.now().strftime("%Y-%m-%d")
 
-# BOUTONS ADAPTATIFS
 if st.session_state.edit_idx is not None:
     col1, col2 = st.columns(2)
     with col1:
