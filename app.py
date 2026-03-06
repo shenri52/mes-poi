@@ -59,7 +59,6 @@ if 'mode_selection' not in st.session_state: st.session_state.mode_selection = "
 if 'last_created' not in st.session_state: st.session_state.last_created = None
 if 'form_count' not in st.session_state: st.session_state.form_count = 0
 
-# On utilise une seule colonne principale pour le mobile
 st.subheader("🗺️ Couche")
 modes = ["Existant", "Nouveau"]
 idx_defaut = modes.index(st.session_state.mode_selection)
@@ -81,21 +80,32 @@ else:
     if st.session_state.last_created in liste_fichiers:
         idx_fichier = liste_fichiers.index(st.session_state.last_created)
     
-    file_name = st.selectbox(
-        "Choisir un jeu de donnée existant", 
-        options=liste_fichiers, 
-        format_func=lambda x: dict_affichage.get(x, x),
-        index=idx_fichier
-    )
+    # --- MISE EN PAGE : LISTE + BOUTON SUPPRIMER ---
+    col_list, col_del = st.columns([3, 1])
     
-    if file_name:
-        existing_data, current_sha = api_github(file_name)
+    with col_list:
+        file_name = st.selectbox(
+            "Choisir un jeu de donnée existant", 
+            options=liste_fichiers, 
+            format_func=lambda x: dict_affichage.get(x, x),
+            index=idx_fichier,
+            label_visibility="collapsed" # Optionnel: pour gagner de la place si besoin
+        )
+    
+    with col_del:
+        if file_name:
+            existing_data, current_sha = api_github(file_name)
+            if st.button("🗑️", use_container_width=True, help="Supprimer ce fichier"):
+                if api_github(file_name, sha=current_sha, methode="DELETE"):
+                    st.warning(f"Supprimé")
+                    st.session_state.last_created = None
+                    st.rerun()
 
 st.write("---")
 st.subheader("✍️ Saisie")
 st.info("💡 Cliquer sur la carte pour indiquer la localisation.")
 
-# --- LA CARTE PLACÉE ICI ---
+# --- CARTE ---
 m = folium.Map(location=[46.6, 2.2], zoom_start=5)
 LocateControl(auto_start=False).add_to(m)
 
@@ -119,7 +129,7 @@ if donnees_carte.get("last_clicked"):
         st.session_state.clic = donnees_carte["last_clicked"]
         st.rerun()
 
-# --- REPRISE DU FORMULAIRE ---
+# --- FORMULAIRE ---
 libelle = st.text_input("Libellé du point", key=f"libelle_{st.session_state.form_count}")
 date_du_jour = datetime.now().strftime("%Y-%m-%d")
 
@@ -143,7 +153,7 @@ if st.button("🚀 Sauvegarder", use_container_width=True):
         data['features'].append(nouveau_poi)
         
         if api_github(file_name, data=data, sha=sha, methode="PUT"):
-            st.success("Enregistré sur GitHub !")
+            st.success("Enregistré !")
             if st.session_state.mode_selection == "Nouveau":
                 st.session_state.last_created = file_name
                 st.session_state.mode_selection = "Existant"
@@ -152,11 +162,3 @@ if st.button("🚀 Sauvegarder", use_container_width=True):
             st.rerun()
     else:
         st.error("Données manquantes.")
-
-if st.session_state.mode_selection == "Existant" and file_name:
-    st.write("---")
-    if st.button("🗑️ Supprimer ce fichier", use_container_width=True, type="secondary"):
-        if api_github(file_name, sha=current_sha, methode="DELETE"):
-            st.warning(f"Fichier {file_name} supprimé.")
-            st.session_state.last_created = None
-            st.rerun()
