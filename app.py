@@ -51,7 +51,7 @@ def api_github(file_path, data=None, sha=None, methode="GET"):
         r = requests.delete(url, json=payload, headers=headers)
         return r.status_code == 200
 
-# --- 3. INITIALISATION DU SESSION STATE ---
+# --- 3. INITIALISATION ---
 if 'clic' not in st.session_state: st.session_state.clic = None
 if 'mode_selection' not in st.session_state: st.session_state.mode_selection = "Existant"
 if 'last_created' not in st.session_state: st.session_state.last_created = None
@@ -61,21 +61,12 @@ if 'map_zoom' not in st.session_state: st.session_state.map_zoom = 5
 if 'edit_idx' not in st.session_state: st.session_state.edit_idx = None
 if 'edit_label' not in st.session_state: st.session_state.edit_label = ""
 
-# --- 4. INTERFACE ---
 st.title("📍 GéoCollect")
 
-# --- SECTION COUCHE (Espace réduit) ---
+# --- 4. SELECTION DE LA COUCHE ---
 st.markdown("#### 🗺️ Couche")
 modes = ["Existant", "Nouveau"]
-
-# Suppression de la key pour laisser le session_state piloter l'index
-choice = st.radio(
-    "", 
-    modes, 
-    index=modes.index(st.session_state.mode_selection), 
-    horizontal=True, 
-    label_visibility="collapsed"
-)
+choice = st.radio("", modes, index=modes.index(st.session_state.mode_selection), horizontal=True, label_visibility="collapsed")
 st.session_state.mode_selection = choice
 
 existing_data = None 
@@ -88,7 +79,6 @@ if st.session_state.mode_selection == "Nouveau":
 else:
     liste_fichiers = lister_geojson_github()
     dict_affichage = {f: f.replace('.geojson', '') for f in liste_fichiers}
-    
     idx_fichier = 0
     if st.session_state.last_created in liste_fichiers:
         idx_fichier = liste_fichiers.index(st.session_state.last_created)
@@ -106,7 +96,7 @@ else:
 
 st.write("---")
 
-# --- STYLE CSS (Bouton collé à la carte) ---
+# --- 5. STYLE CSS ET CARTE ---
 st.markdown("""
     <style>
     div.stButton > button:first-child {
@@ -124,7 +114,6 @@ st.markdown("""
 
 st.markdown("### ✍️ Saisir ou modifier")
 
-# --- BOUTON VUE FRANCE ---
 col_h, _ = st.columns([1, 4])
 with col_h:
     if st.button("🏠 Vue France", use_container_width=True):
@@ -134,7 +123,6 @@ with col_h:
         st.session_state.form_count += 1 
         st.rerun()
 
-# --- CARTE ---
 m = folium.Map(location=st.session_state.map_center, zoom_start=st.session_state.map_zoom)
 LocateControl(auto_start=False).add_to(m)
 Fullscreen(position="topright", force_separate_button=True).add_to(m)
@@ -160,7 +148,7 @@ donnees_carte = st_folium(
     key=f"map_{st.session_state.form_count}"
 )
 
-# --- LOGIQUE DE DETECTION ---
+# --- 6. LOGIQUE DE CLIC ---
 if donnees_carte.get("last_object_clicked"):
     obj = donnees_carte["last_object_clicked"]
     st.session_state.map_center = [donnees_carte["center"]["lat"], donnees_carte["center"]["lng"]]
@@ -169,4 +157,63 @@ if donnees_carte.get("last_object_clicked"):
         for i, feat in enumerate(existing_data["features"]):
             coords = feat["geometry"]["coordinates"]
             if abs(coords[1] - obj["lat"]) < 0.0001 and abs(coords[0] - obj["lng"]) < 0.0001:
-                if st.session_state.edit_idx
+                if st.session_state.edit_idx != i:
+                    st.session_state.edit_label = str(feat["properties"].get("libelle", "")).replace('<b>', '').replace('</b>', '').split('<')[0]
+                    st.session_state.edit_idx = i
+                    st.session_state.clic = {"lat": obj["lat"], "lng": obj["lng"]}
+                    st.session_state[f"libelle_{st.session_state.form_count}"] = st.session_state.edit_label
+                    st.rerun()
+
+if donnees_carte.get("last_clicked") and not donnees_carte.get("last_object_clicked"):
+    st.session_state.map_center = [donnees_carte["center"]["lat"], donnees_carte["center"]["lng"]]
+    st.session_state.map_zoom = donnees_carte["zoom"]
+    if st.session_state.clic != donnees_carte["last_clicked"]:
+        st.session_state.clic = donnees_carte["last_clicked"]
+        st.session_state.edit_idx = None
+        st.session_state.edit_label = ""
+        st.session_state[f"libelle_{st.session_state.form_count}"] = ""
+        st.rerun()
+
+# --- 7. FORMULAIRE ET ACTIONS ---
+if st.session_state.clic:
+    st.markdown(f'<div style="background-color: rgba(212, 237, 218, 0.8); color: #155724; padding: 10px; border-radius: 5px; margin-top: 10px; margin-bottom: 10px;">📍 Point : {st.session_state.clic["lat"]:.5f}, {st.session_state.clic["lng"]:.5f}</div>', unsafe_allow_html=True)
+
+libelle = st.text_input("Libellé", key=f"libelle_{st.session_state.form_count}")
+
+if st.session_state.edit_idx is not None:
+    c1, c2 = st.columns(2)
+    with c1:
+        if st.button("📝 Modifier", use_container_width=True):
+            data, sha = api_github(file_name)
+            data["features"][st.session_state.edit_idx]["properties"]["libelle"] = libelle
+            if api_github(file_name, data=data, sha=sha, methode="PUT"):
+                st.session_state.clic = None
+                st.session_state.edit_idx = None
+                st.session_state.form_count += 1
+                st.rerun()
+    with c2:
+        if st.button("🗑️ Supprimer", use_container_width=True):
+            data, sha = api_github(file_name)
+            del data["features"][st.session_state.edit_idx]
+            if api_github(file_name, data=data, sha=sha, methode="PUT"):
+                st.session_state.clic = None
+                st.session_state.edit_idx = None
+                st.session_state.form_count += 1
+                st.rerun()
+else:
+    if st.button("🚀 Sauvegarder", use_container_width=True):
+        if file_name and libelle and st.session_state.clic:
+            data_save, sha_save = api_github(file_name)
+            if data_save is None: data_save = {"type": "FeatureCollection", "features": []}
+            nouveau_poi = {
+                "type": "Feature",
+                "geometry": {"type": "Point", "coordinates": [st.session_state.clic['lng'], st.session_state.clic['lat']]},
+                "properties": {"libelle": libelle, "date": datetime.now().strftime("%Y-%m-%d")}
+            }
+            data_save['features'].append(nouveau_poi)
+            if api_github(file_name, data=data_save, sha=sha_save, methode="PUT"):
+                st.session_state.mode_selection = "Existant"
+                st.session_state.last_created = file_name
+                st.session_state.clic = None
+                st.session_state.form_count += 1
+                st.rerun()
