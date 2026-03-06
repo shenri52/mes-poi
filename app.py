@@ -122,7 +122,7 @@ st.markdown("""
         border-radius: 8px !important;
     }
 
-    /* 4. Conteneur Flex pour le formulaire mobile */
+    /* 4. Conteneur Flex pour le formulaire mobile - Version Correction Alignement */
     .mobile-row {
         display: flex !important;
         flex-direction: row !important;
@@ -131,20 +131,37 @@ st.markdown("""
         margin-top: 5px;
         width: 100%;
     }
-    
+
+    /* Force le texte "Libellé" à ne pas avoir de marge en bas qui le pousserait vers le haut */
     .mobile-label {
         font-weight: bold;
         white-space: nowrap;
-        font-size: 0.9em;
+        margin-bottom: 0px !important; 
+        padding-bottom: 0px !important;
+        display: flex;
+        align-items: center;
     }
 
+    /* Supprime la marge par défaut de Streamlit sous le champ de saisie */
+    div[data-testid="stTextInput"] {
+        margin-bottom: 0px !important;
+        padding-bottom: 0px !important;
+        display: flex;
+        align-items: center;
+    }
+
+    /* Ajuste la boîte verte pour qu'elle ait la même attitude que le champ de saisie */
     .coord-box {
         background-color: rgba(212, 237, 218, 0.8);
         color: #155724;
-        padding: 4px 8px;
+        padding: 5px 8px;
         border-radius: 5px;
         font-size: 0.75em;
         border: 1px solid #c3e6cb;
+        display: flex;
+        align-items: center;
+        height: 34px; /* Hauteur fixe pour s'aligner sur le champ de texte */
+        margin-bottom: 0px !important;
     }
     </style>
 """, unsafe_allow_html=True)
