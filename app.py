@@ -63,6 +63,19 @@ if 'map_zoom' not in st.session_state: st.session_state.map_zoom = 5
 if 'edit_idx' not in st.session_state: st.session_state.edit_idx = None
 if 'edit_label' not in st.session_state: st.session_state.edit_label = ""
 
+# Gestion du clic de modification via URL (pour rester simple et stable)
+params = st.query_params.to_dict()
+if "edit" in params and "file" in params:
+    idx_to_edit = int(params["edit"])
+    file_to_edit = params["file"]
+    data_edit, _ = api_github(file_to_edit)
+    if data_edit and idx_to_edit < len(data_edit["features"]):
+        feat = data_edit["features"][idx_to_edit]
+        st.session_state.edit_idx = idx_to_edit
+        st.session_state.edit_label = feat["properties"].get("libelle", "")
+        st.session_state.clic = {"lat": feat["geometry"]["coordinates"][1], "lng": feat["geometry"]["coordinates"][0]}
+        st.query_params.clear()
+
 st.subheader("🗺️ Couche")
 modes = ["Existant", "Nouveau"]
 idx_defaut = modes.index(st.session_state.mode_selection)
@@ -106,12 +119,22 @@ if existing_data and "features" in existing_data:
     for i, feature in enumerate(existing_data["features"]):
         coords = feature["geometry"]["coordinates"]
         prop = feature["properties"]
-        
+        # Lien pour charger le point dans le formulaire
+        edit_url = f"/?file={file_name}&edit={i}"
+        html_popup = f"""
+        <div style="font-family: sans-serif; min-width: 150px;">
+            <b>{prop.get('libelle', 'Sans nom')}</b><br>
+            <small>{prop.get('date', '')}</small><br><br>
+            <button onclick="window.top.location.href='{edit_url}'" 
+                    style="color:white; background-color:#007bff; border:none; padding:8px; border-radius:4px; cursor:pointer; font-weight:bold; width:100%;">
+                📝 Modifier ce point
+            </button>
+        </div>
+        """
         folium.Marker(
             [coords[1], coords[0]], 
-            icon=folium.Icon(color="blue", icon="info-sign"),
-            # On passe l'index dans le nom pour le retrouver au clic
-            name=str(i) 
+            popup=folium.Popup(html_popup, max_width=250),
+            icon=folium.Icon(color="blue", icon="info-sign")
         ).add_to(m)
 
 if st.session_state.clic:
@@ -122,18 +145,7 @@ if st.session_state.clic:
 
 donnees_carte = st_folium(m, width="100%", height=350)
 
-# Détection clic sur point existant
-if donnees_carte.get("last_object_clicked"):
-    try:
-        idx = int(donnees_carte["last_object_clicked_name"])
-        if existing_data and idx < len(existing_data["features"]):
-            feat = existing_data["features"][idx]
-            st.session_state.edit_idx = idx
-            st.session_state.edit_label = feat["properties"].get("libelle", "")
-            st.session_state.clic = {"lat": feat["geometry"]["coordinates"][1], "lng": feat["geometry"]["coordinates"][0]}
-    except: pass
-
-if donnees_carte.get("last_clicked") and not donnees_carte.get("last_object_clicked"):
+if donnees_carte.get("last_clicked"):
     st.session_state.map_center = [donnees_carte["center"]["lat"], donnees_carte["center"]["lng"]]
     st.session_state.map_zoom = donnees_carte["zoom"]
     if st.session_state.clic != donnees_carte["last_clicked"]:
@@ -160,22 +172,20 @@ if st.session_state.clic:
 
 date_du_jour = datetime.now().strftime("%Y-%m-%d")
 
-# --- BOUTONS ADAPTATIFS ---
 if st.session_state.edit_idx is not None:
     col_mod, col_supp = st.columns(2)
     with col_mod:
-        if st.button("📝 Modifier", use_container_width=True):
-            if file_name and libelle:
-                data, sha = api_github(file_name)
-                data["features"][st.session_state.edit_idx]["properties"]["libelle"] = libelle
-                if api_github(file_name, data=data, sha=sha, methode="PUT"):
-                    st.success("Modifié !")
-                    st.session_state.clic = None
-                    st.session_state.edit_idx = None
-                    st.session_state.form_count += 1
-                    st.rerun()
+        if st.button("📝 Valider modification", use_container_width=True):
+            data, sha = api_github(file_name)
+            data["features"][st.session_state.edit_idx]["properties"]["libelle"] = libelle
+            if api_github(file_name, data=data, sha=sha, methode="PUT"):
+                st.success("Modifié !")
+                st.session_state.clic = None
+                st.session_state.edit_idx = None
+                st.session_state.form_count += 1
+                st.rerun()
     with col_supp:
-        if st.button("🗑️ Supprimer point", use_container_width=True):
+        if st.button("🗑️ Supprimer le point", use_container_width=True):
             data, sha = api_github(file_name)
             del data["features"][st.session_state.edit_idx]
             if api_github(file_name, data=data, sha=sha, methode="PUT"):
@@ -197,9 +207,6 @@ else:
             data_save['features'].append(nouveau_poi)
             if api_github(file_name, data=data_save, sha=sha_save, methode="PUT"):
                 st.success("Enregistré !")
-                if st.session_state.mode_selection == "Nouveau":
-                    st.session_state.last_created = file_name
-                    st.session_state.mode_selection = "Existant"
                 st.session_state.clic = None
                 st.session_state.form_count += 1
                 st.rerun()
