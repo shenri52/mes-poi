@@ -96,40 +96,47 @@ else:
 
 st.write("---")
 
-# --- 5. STYLE CSS (INDISPENSABLE POUR LE FOND VERT) ---
-# --- 5. STYLE CSS ---
+# --- 5. STYLE CSS (FORCE L'AFFICHAGE EN LIGNE SUR MOBILE) ---
 st.markdown("""
     <style>
-    /* Bouton Vue France : on garde l'arrondi naturel */
+    /* Bouton Vue France Arrondi */
     div.stButton > button:first-child {
-        margin-bottom: 5px !important; /* Petit espace au lieu de -15px */
+        margin-bottom: 5px !important;
         height: 40px;
-        border-radius: 8px !important; /* Force un bel arrondi partout */
-    }
-    
-    /* Carte : on lui rend aussi ses arrondis si besoin */
-    iframe {
         border-radius: 8px !important;
     }
+    iframe { border-radius: 8px !important; }
 
-    /* Alignement vertical du mot Libellé */
-    .valign {
-        display: flex;
-        align-items: center;
-        height: 100%;
-        padding-top: 8px;
+    /* LE CONTENEUR MAGIQUE POUR MOBILE */
+    .mobile-row {
+        display: flex !important;
+        flex-direction: row !important;
+        flex-wrap: nowrap !important;
+        align-items: center !important;
+        gap: 8px !important;
+        width: 100%;
+        margin-bottom: 10px;
+    }
+    
+    .mobile-label {
         font-weight: bold;
+        white-space: nowrap;
+        font-size: 0.9em;
     }
 
-    /* LE FOND VERT DES COORDONNÉES */
+    /* Force le champ de texte à prendre la place restante */
+    div[data-testid="stTextInput"] {
+        flex: 1 1 auto !important;
+        min-width: 50px;
+    }
+
     .coord-box {
         background-color: rgba(212, 237, 218, 0.8);
         color: #155724;
-        padding: 6px 10px;
+        padding: 4px 8px;
         border-radius: 5px;
-        font-size: 0.85em;
+        font-size: 0.75em;
         border: 1px solid #c3e6cb;
-        text-align: center;
         white-space: nowrap;
     }
     </style>
@@ -197,20 +204,20 @@ if donnees_carte.get("last_clicked") and not donnees_carte.get("last_object_clic
         st.session_state[f"libelle_{st.session_state.form_count}"] = ""
         st.rerun()
 
-# --- 7. FORMULAIRE 3 COLONNES ---
-c_lab, c_inp, c_pts = st.columns([0.4, 5, 1.5])
+# --- 7. FORMULAIRE ULTRA-COMPACT (MULTI-SUPPORT) ---
+st.markdown('<div class="mobile-row">', unsafe_allow_html=True)
+st.markdown('<div class="mobile-label">Libellé</div>', unsafe_allow_html=True)
 
-with c_lab:
-    st.markdown('<div class="valign">Libellé</div>', unsafe_allow_html=True)
+# Le champ de texte s'insère ici
+libelle = st.text_input("Libellé", key=f"libelle_{st.session_state.form_count}", label_visibility="collapsed")
 
-with c_inp:
-    libelle = st.text_input("Libellé", key=f"libelle_{st.session_state.form_count}", label_visibility="collapsed")
+# Les coordonnées à droite
+if st.session_state.clic:
+    st.markdown(f'<div class="coord-box">📍 {st.session_state.clic["lat"]:.4f}, {st.session_state.clic["lng"]:.4f}</div>', unsafe_allow_html=True)
+else:
+    st.markdown('<div class="coord-box" style="color:#ccc; border-style:dashed;">...</div>', unsafe_allow_html=True)
 
-with c_pts:
-    if st.session_state.clic:
-        st.markdown(f'<div class="coord-box">📍 {st.session_state.clic["lat"]:.5f}, {st.session_state.clic["lng"]:.5f}</div>', unsafe_allow_html=True)
-    else:
-        st.markdown('<div class="coord-box" style="background-color: transparent; border: 1px dashed #ccc; color: #ccc;">Attente...</div>', unsafe_allow_html=True)
+st.markdown('</div>', unsafe_allow_html=True)
 
 # --- 8. ACTIONS ---
 if st.session_state.edit_idx is not None:
