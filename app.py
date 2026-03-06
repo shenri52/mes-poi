@@ -93,7 +93,7 @@ else:
                     st.rerun()
 
 st.write("---")
-st.markdown("#### ✍️ Saisir / modifier un point")
+st.markdown("#### ✍️ Saisir ou modifier un point")
 
 # --- LE BOUTON DE RESET ---
 col_h, _ = st.columns([1, 3])
