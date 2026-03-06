@@ -5,8 +5,8 @@ import base64
 from datetime import datetime
 import folium
 from streamlit_folium import st_folium
-from folium.plugins import LocateControl, Fullscreen, EasyButton # Ajout de EasyButton
-from branca.element import Element
+from folium.plugins import LocateControl, Fullscreen
+from branca.element import Element, MacroElement
 
 # --- 1. CONFIGURATION ET SECRETS ---
 st.set_page_config(page_title="GéoCollect de mes POI", page_icon="📍", layout="wide")
@@ -103,12 +103,30 @@ m = folium.Map(
     zoom_control=True
 )
 
-# NOUVELLE METHODE ROBUSTE POUR LA VUE GLOBALE
-EasyButton(
-    icon='fa-home',
-    title='Vue Globale',
-    onClick=folium.JsCode('function(btn, map){ map.setView([46.6, 2.2], 5); }')
-).add_to(m)
+# INJECTION DU BOUTON MAISON (VUE GLOBALE) VIA MACRO
+template = """
+{% macro html(this, kwargs) %}
+<div id="home-button" style="
+    position: absolute; 
+    top: 70px; left: 10px; 
+    width: 34px; height: 34px; 
+    background-color: white; 
+    border: 2px solid rgba(0,0,0,0.2); 
+    border-radius: 4px; 
+    z-index: 1000; 
+    cursor: pointer; 
+    display: flex; 
+    align-items: center; 
+    justify-content: center;
+    font-size: 20px;"
+    onclick="{{this._parent.get_name()}}.setView([46.6, 2.2], 5);">
+    🏠
+</div>
+{% endmacro %}
+"""
+macro = MacroElement()
+macro._template = Element(template)
+m.add_child(macro)
 
 LocateControl(auto_start=False).add_to(m)
 Fullscreen(position="topright", force_separate_button=True).add_to(m)
