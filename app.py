@@ -1,4 +1,17 @@
 import streamlit as st
+
+import streamlit as st
+
+# Cette ligne doit être la TOUTE PREMIÈRE commande Streamlit du fichier
+st.set_page_config(
+    page_title="GeoCollect",  # Le futur nom du raccourci
+    page_icon="📍",                  # L'icône qui aide à ne pas se tromper
+)
+
+# ... la suite de ton code (formulaire, reset, etc.)
+
+
+
 import json
 import requests
 import base64
