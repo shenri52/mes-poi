@@ -93,7 +93,21 @@ else:
                     st.rerun()
 
 st.write("---")
-st.subheader("✍️ Saisir ou modifier un point")
+st.subheader("✍️ Saisir / modifier un point")
+
+# --- AJOUT DU BOUTON VUE FRANCE ---
+if st.button("🏠 Vue France (Reset)", use_container_width=True):
+    st.session_state.map_center = [46.6, 2.2]
+    st.session_state.map_zoom = 5
+    st.rerun()
+
+# --- CARTE --- (Le reste de ton code ne change pas)
+m = folium.Map(
+    location=st.session_state.map_center, 
+    zoom_start=st.session_state.map_zoom,
+    zoom_control=True
+)
+
 
 # --- CARTE ---
 m = folium.Map(
