@@ -103,7 +103,7 @@ else:
 
 st.write("---")
 st.subheader("✍️ Saisie")
-st.info("💡 Cliquer sur la carte pour indiquer la localisation.")
+st.info("💡 Cliquer sur la carte et saisir le libellé.")
 
 # --- CARTE ---
 m = folium.Map(location=[46.6, 2.2], zoom_start=5)
