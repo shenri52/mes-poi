@@ -61,21 +61,20 @@ if 'form_count' not in st.session_state: st.session_state.form_count = 0
 if 'map_center' not in st.session_state: st.session_state.map_center = [46.6, 2.2]
 if 'map_zoom' not in st.session_state: st.session_state.map_zoom = 5
 
-# --- LOGIQUE DE SUPPRESSION ---
+# --- LOGIQUE DE SUPPRESSION POINT PAR POINT ---
 query_params = st.query_params
 if "delete_idx" in query_params and "file" in query_params:
     idx_to_del = int(query_params["delete_idx"])
     target_file = query_params["file"]
     
-    # Récupération de la vue pour éviter le dezoom
-    if "lat" in query_params: st.session_state.map_center = [float(query_params["lat"]), float(query_params["lng"])]
-    if "zoom" in query_params: st.session_state.map_zoom = int(query_params["zoom"])
-
     data, sha = api_github(target_file)
     if data and 0 <= idx_to_del < len(data["features"]):
         del data["features"][idx_to_del]
         if api_github(target_file, data=data, sha=sha, methode="PUT"):
             st.toast("Point supprimé")
+            # Pour la suppression, on peut choisir de revenir au global
+            st.session_state.map_center = [46.6, 2.2]
+            st.session_state.map_zoom = 5
             st.query_params.clear()
             st.rerun()
 
@@ -112,7 +111,7 @@ else:
 
 st.write("---")
 st.subheader("✍️ Saisie")
-st.markdown('<div style="background-color: #d1e7ff; color: #004085; padding: 5px 10px; border-radius: 5px; font-size: 14px; margin-bottom: 10px;">💡 Touchez la carte pour localiser.</div>', unsafe_allow_html=True)
+st.markdown('<div style="background-color: #d1e7ff; color: #004085; padding: 5px 10px; border-radius: 5px; font-size: 14px; margin-bottom: 10px;">💡Cliquer la carte pour localiser puis saisir le libellé.</div>', unsafe_allow_html=True)
 
 # --- CARTE ---
 m = folium.Map(location=st.session_state.map_center, zoom_start=st.session_state.map_zoom)
@@ -124,22 +123,22 @@ if existing_data and "features" in existing_data:
         coords = feature["geometry"]["coordinates"]
         prop = feature["properties"]
         
-        # JS pour forcer le rechargement de la fenêtre PARENTE (window.top)
-        c_lat, c_lng = st.session_state.map_center
-        zoom = st.session_state.map_zoom
-        delete_url = f"/?file={file_name}&delete_idx={i}&lat={c_lat}&lng={c_lng}&zoom={zoom}"
+        # URL de suppression pour window.top
+        delete_url = f"/?file={file_name}&delete_idx={i}"
         
         html_popup = f"""
-        <b>{prop.get('libelle', 'Sans nom')}</b><br>
-        Date: {prop.get('date', 'N/A')}<br><br>
-        <button onclick="window.top.location.href='{delete_url}'" 
-                style="color:white; background-color:red; border:none; padding:5px; border-radius:3px; cursor:pointer; font-weight:bold; width:100%;">
-            🗑️ Supprimer ce point
-        </button>
+        <div style="font-family: sans-serif; min-width: 150px;">
+            <b>{prop.get('libelle', 'Sans nom')}</b><br>
+            <small>Date: {prop.get('date', 'N/A')}</small><br><br>
+            <button onclick="window.top.location.href='{delete_url}'" 
+                    style="color:white; background-color:#d33; border:none; padding:8px; border-radius:4px; cursor:pointer; font-weight:bold; width:100%;">
+                🗑️ Supprimer ce point
+            </button>
+        </div>
         """
         folium.Marker(
             [coords[1], coords[0]], 
-            popup=folium.Popup(html_popup, max_width=200),
+            popup=folium.Popup(html_popup, max_width=250),
             icon=folium.Icon(color="blue", icon="info-sign")
         ).add_to(m)
 
@@ -148,6 +147,7 @@ if st.session_state.clic:
 
 donnees_carte = st_folium(m, width="100%", height=350)
 
+# Mémorisation du zoom pendant la saisie
 if donnees_carte.get("last_clicked"):
     st.session_state.map_center = [donnees_carte["center"]["lat"], donnees_carte["center"]["lng"]]
     st.session_state.map_zoom = donnees_carte["zoom"]
@@ -171,9 +171,16 @@ if st.button("🚀 Sauvegarder", use_container_width=True):
         data['features'].append(nouveau_poi)
         if api_github(file_name, data=data, sha=sha, methode="PUT"):
             st.success("Enregistré !")
+            
+            # Réinitialisation de la vue au global après enregistrement
+            st.session_state.map_center = [46.6, 2.2]
+            st.session_state.map_zoom = 5
+            
             if st.session_state.mode_selection == "Nouveau":
                 st.session_state.last_created = file_name
                 st.session_state.mode_selection = "Existant"
             st.session_state.clic = None
             st.session_state.form_count += 1
             st.rerun()
+    else:
+        st.error("Données manquantes.")
