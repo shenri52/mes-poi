@@ -153,6 +153,9 @@ if donnees_carte.get("last_clicked"):
 
 # --- FORMULAIRE ---
 libelle = st.text_input("Libellé", key=f"libelle_{st.session_state.form_count}")
+# --- AFFICHAGE DES COORDONNÉES (À METTRE SOUS st_folium) ---
+if st.session_state.clic:
+    st.write(f"📍 Point sélectionné : {st.session_state.clic['lat']:.5f}, {st.session_state.clic['lng']:.5f}")
 date_du_jour = datetime.now().strftime("%Y-%m-%d")
 
 if st.button("🚀 Sauvegarder", use_container_width=True):
