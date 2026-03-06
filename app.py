@@ -61,19 +61,6 @@ if 'form_count' not in st.session_state: st.session_state.form_count = 0
 if 'map_center' not in st.session_state: st.session_state.map_center = [46.6, 2.2]
 if 'map_zoom' not in st.session_state: st.session_state.map_zoom = 5
 
-# --- LOGIQUE DE SUPPRESSION DE POINT (MISE À JOUR COUCHE UNIQUEMENT) ---
-params = st.query_params.to_dict()
-if "delete_idx" in params and "file" in params:
-    idx_to_del = int(params["delete_idx"])
-    target_file = params["file"]
-    data_del, sha_del = api_github(target_file)
-    if data_del and 0 <= idx_to_del < len(data_del["features"]):
-        del data_del["features"][idx_to_del]
-        if api_github(target_file, data=data_del, sha=sha_del, methode="PUT"):
-            st.toast(f"Point supprimé dans {target_file}")
-            # On nettoie l'URL sans recharger toute l'app pour laisser la couche se rafraîchir
-            st.query_params.clear()
-
 st.subheader("🗺️ Couche")
 modes = ["Existant", "Nouveau"]
 idx_defaut = modes.index(st.session_state.mode_selection)
@@ -152,7 +139,6 @@ if donnees_carte.get("last_clicked"):
 # --- FORMULAIRE ---
 libelle = st.text_input("Libellé", key=f"libelle_{st.session_state.form_count}")
 
-# --- AFFICHAGE DES COORDONNÉES ---
 if st.session_state.clic:
     st.markdown(f'''
         <div style="background-color: rgba(212, 237, 218, 0.8); 
