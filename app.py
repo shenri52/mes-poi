@@ -156,7 +156,12 @@ libelle = st.text_input("Libellé", key=f"libelle_{st.session_state.form_count}"
 # --- AFFICHAGE DES COORDONNÉES  ---
 if st.session_state.clic:
     st.markdown(f'''
-        <div style="background-color: #d4edda; color: #155724; padding: 10px; border-radius: 5px; margin-bottom: 10px;">
+        <div style="background-color: rgba(212, 237, 218, 0.8); 
+                    color: #155724; 
+                    padding: 10px; 
+                    border: 1px solid rgba(195, 230, 203, 0.8); 
+                    border-radius: 5px; 
+                    margin-bottom: 10px;">
             📍 Point sélectionné : {st.session_state.clic["lat"]:.5f}, {st.session_state.clic["lng"]:.5f}
         </div>
     ''', unsafe_allow_html=True)
