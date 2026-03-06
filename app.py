@@ -25,7 +25,6 @@ def lister_geojson_github():
     headers = {"Authorization": f"token {GITHUB_TOKEN}"}
     r = requests.get(url, headers=headers)
     if r.status_code == 200:
-        # On garde le nom complet pour le fichier mais on peut filtrer l'affichage
         return [f['name'] for f in r.json() if f['name'].endswith('.geojson')]
     return []
 
@@ -53,7 +52,6 @@ st.title("📍 GéoCollect de mes POI")
 if 'clic' not in st.session_state: st.session_state.clic = None
 if 'mode_action' not in st.session_state: st.session_state.mode_action = "Existant"
 if 'last_created' not in st.session_state: st.session_state.last_created = None
-# Clé pour reset le formulaire
 if 'form_count' not in st.session_state: st.session_state.form_count = 0
 
 col_saisie, col_carte = st.columns([1, 2])
@@ -62,6 +60,8 @@ with col_saisie:
     st.subheader("🗺️ Couche")
     modes = ["Existant", "Nouveau"]
     idx_mode = modes.index(st.session_state.mode_action)
+    
+    # On utilise l'index pour forcer la sélection visuelle du bouton radio
     st.session_state.mode_action = st.radio("Action", modes, index=idx_mode, horizontal=True, key="radio_mode")
     
     existing_data = None 
@@ -71,7 +71,6 @@ with col_saisie:
         file_name = f"{nom_saisi}.geojson" if nom_saisi else None
     else:
         liste_fichiers = lister_geojson_github()
-        # Création d'un dictionnaire pour afficher sans l'extension
         dict_affichage = {f: f.replace('.geojson', '') for f in liste_fichiers}
         
         index_defaut = 0
@@ -91,7 +90,6 @@ with col_saisie:
     st.write("---")
     st.subheader("✍️ Saisie")
     st.info("💡 Cliquer sur la carte pour indiquer la localisation.")
-    # Utilisation d'une clé dynamique pour forcer le reset
     libelle = st.text_input("Libellé du point", key=f"libelle_{st.session_state.form_count}")
     date_du_jour = datetime.now().strftime("%Y-%m-%d")
 
@@ -116,12 +114,13 @@ with col_saisie:
             
             if api_github(file_name, data=data, sha=sha, methode="PUT"):
                 st.success("Enregistré sur GitHub !")
+                
+                # BASCULE ET PRÉ-SÉLECTION
                 if st.session_state.mode_action == "Nouveau":
                     st.session_state.last_created = file_name
                     st.session_state.mode_action = "Existant"
                 
                 st.session_state.clic = None
-                # Incrémenter pour vider le champ texte au prochain rerun
                 st.session_state.form_count += 1
                 st.rerun()
         else:
@@ -134,9 +133,11 @@ with col_carte:
     if existing_data and "features" in existing_data:
         for feature in existing_data["features"]:
             coords = feature["geometry"]["coordinates"]
+            prop = feature["properties"]
+            # Affichage Libellé + Date dans le popup
             folium.Marker(
                 [coords[1], coords[0]], 
-                popup=feature["properties"].get("libelle", "Sans nom"),
+                popup=f"<b>{prop.get('libelle', 'Sans nom')}</b><br>Date: {prop.get('date', 'N/A')}",
                 icon=folium.Icon(color="blue", icon="info-sign")
             ).add_to(m)
     
