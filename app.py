@@ -96,41 +96,6 @@ else:
 
 st.write("---")
 
-# --- 5. STYLE CSS ---
-st.markdown("""
-    <style>
-    div.stButton > button:first-child {
-        border-bottom-left-radius: 0px !important;
-        border-bottom-right-radius: 0px !important;
-        margin-bottom: -15px !important;
-        height: 40px;
-    }
-    iframe {
-        border-top-left-radius: 0px !important;
-        border-top-right-radius: 0px !important;
-    }
-    /* Aligne le texte du libellé verticalement avec le champ */
-    .valign {
-        display: flex;
-        align-items: center;
-        height: 100%;
-        padding-top: 5px;
-        font-weight: bold;
-    }
-    /* Style minimaliste pour la zone coordonnée */
-    .coord-box {
-        background-color: rgba(212, 237, 218, 0.4);
-        color: #155724;
-        padding: 6px 10px;
-        border-radius: 5px;
-        font-size: 0.85em;
-        border: 1px solid #c3e6cb;
-        text-align: center;
-        white-space: nowrap;
-    }
-    </style>
-""", unsafe_allow_html=True)
-
 st.markdown("### ✍️ Saisir ou modifier")
 
 col_h, _ = st.columns([1, 4])
@@ -195,7 +160,7 @@ if donnees_carte.get("last_clicked") and not donnees_carte.get("last_object_clic
 
 # --- 7. FORMULAIRE 3 COLONNES ---
 # Largeurs : Libellé (0.6), Saisie (flexible), Coordonnées (2.2)
-c_lab, c_inp, c_pts = st.columns([0.6, 5, 2.2])
+c_lab, c_inp, c_pts = st.columns([0.4, 5, 2])
 
 with c_lab:
     st.markdown('<div class="valign">Libellé</div>', unsafe_allow_html=True)
