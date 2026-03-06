@@ -52,7 +52,7 @@ def api_github(file_path, data=None, sha=None, methode="GET"):
         return r.status_code == 200
 
 # --- 3. INTERFACE ---
-st.title("📍 GéoCollect de mes POI")
+st.title("📍 GéoCollect")
 
 if 'clic' not in st.session_state: st.session_state.clic = None
 if 'mode_selection' not in st.session_state: st.session_state.mode_selection = "Existant"
