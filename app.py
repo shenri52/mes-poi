@@ -120,7 +120,7 @@ if st.session_state.clic:
 
 donnees_carte = st_folium(m, width="100%", height=350)
 
-# LOGIQUE DE DETECTION SANS MODIFIER LE ZOOM
+# LOGIQUE DE DETECTION
 if donnees_carte.get("last_object_clicked"):
     lat_click = donnees_carte["last_object_clicked"]["lat"]
     lng_click = donnees_carte["last_object_clicked"]["lng"]
@@ -132,20 +132,24 @@ if donnees_carte.get("last_object_clicked"):
                     st.session_state.edit_idx = i
                     st.session_state.edit_label = feat["properties"].get("libelle", "")
                     st.session_state.clic = {"lat": lat_click, "lng": lng_click}
+                    # Forcer la valeur dans le widget avant le rerun
+                    st.session_state[f"libelle_{st.session_state.form_count}"] = st.session_state.edit_label
                     st.rerun()
 
 if donnees_carte.get("last_clicked") and not donnees_carte.get("last_object_clicked"):
-    # On ne met à jour le centre/zoom que lors d'un clic sur la carte, pas sur un point
     st.session_state.map_center = [donnees_carte["center"]["lat"], donnees_carte["center"]["lng"]]
     st.session_state.map_zoom = donnees_carte["zoom"]
     if st.session_state.clic != donnees_carte["last_clicked"]:
         st.session_state.clic = donnees_carte["last_clicked"]
         st.session_state.edit_idx = None
         st.session_state.edit_label = ""
+        # On vide le champ pour un nouveau point
+        st.session_state[f"libelle_{st.session_state.form_count}"] = ""
         st.rerun()
 
 # --- FORMULAIRE ---
-libelle = st.text_input("Libellé", value=st.session_state.edit_label, key=f"libelle_{st.session_state.form_count}")
+# Utilisation de la clé pour contrôler l'affichage
+libelle = st.text_input("Libellé", key=f"libelle_{st.session_state.form_count}")
 
 if st.session_state.clic:
     st.markdown(f'''
