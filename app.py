@@ -96,9 +96,13 @@ st.write("---")
 st.subheader("✍️ Saisir / modifier un point")
 
 # --- AJOUT DU BOUTON VUE FRANCE ---
-if st.button("🏠 Vue France (Reset)", use_container_width=True):
-    st.session_state.map_center = [46.6, 2.2]
-    st.session_state.map_zoom = 5
+if st.button("🏠 Vue France", use_container_width=True):
+st.session_state.map_center = [46.6, 2.2]
+        st.session_state.map_zoom = 5
+        st.session_state.clic = None
+        # On augmente le compteur pour changer la 'key' de la carte
+        st.session_state.form_count += 1 
+        st.rerun()
     st.rerun()
 
 # --- CARTE --- (Le reste de ton code ne change pas)
