@@ -120,7 +120,13 @@ if st.session_state.clic:
 
 donnees_carte = st_folium(m, width="100%", height=350)
 
-# LOGIQUE DE DETECTION SANS TOUCHER AU ZOOM
+# SAUVEGARDE SYSTÉMATIQUE DU ZOOM ET CENTRE
+if donnees_carte.get("center"):
+    st.session_state.map_center = [donnees_carte["center"]["lat"], donnees_carte["center"]["lng"]]
+if donnees_carte.get("zoom"):
+    st.session_state.map_zoom = donnees_carte["zoom"]
+
+# LOGIQUE DE DETECTION DU CLIC SUR UN POINT
 if donnees_carte.get("last_object_clicked"):
     lat_click = donnees_carte["last_object_clicked"]["lat"]
     lng_click = donnees_carte["last_object_clicked"]["lng"]
@@ -135,10 +141,8 @@ if donnees_carte.get("last_object_clicked"):
                     st.session_state[f"libelle_{st.session_state.form_count}"] = st.session_state.edit_label
                     st.rerun()
 
+# LOGIQUE CLIC CARTE VIDE
 if donnees_carte.get("last_clicked") and not donnees_carte.get("last_object_clicked"):
-    # On fige le centre et le zoom actuels pour éviter le saut au clic
-    st.session_state.map_center = [donnees_carte["center"]["lat"], donnees_carte["center"]["lng"]]
-    st.session_state.map_zoom = donnees_carte["zoom"]
     if st.session_state.clic != donnees_carte["last_clicked"]:
         st.session_state.clic = donnees_carte["last_clicked"]
         st.session_state.edit_idx = None
