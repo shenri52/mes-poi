@@ -96,7 +96,12 @@ st.write("---")
 st.subheader("✍️ Saisie")
 
 # --- CARTE ---
-m = folium.Map(location=st.session_state.map_center, zoom_start=st.session_state.map_zoom)
+# Ajout explicite du contrôle de zoom pour qu'il réapparaisse
+m = folium.Map(
+    location=st.session_state.map_center, 
+    zoom_start=st.session_state.map_zoom,
+    zoom_control=True 
+)
 LocateControl(auto_start=False).add_to(m)
 Fullscreen(position="topright", force_separate_button=True).add_to(m)
 
@@ -104,7 +109,6 @@ if existing_data and "features" in existing_data:
     for i, feature in enumerate(existing_data["features"]):
         coords = feature["geometry"]["coordinates"]
         prop = feature["properties"]
-        # Nettoyage strict pour éviter les caractères parasites
         nom_txt = str(prop.get('libelle', 'Sans nom')).replace('<b>', '').replace('</b>', '').split('<')[0]
         
         folium.Marker(
@@ -120,37 +124,40 @@ if st.session_state.clic:
         icon=folium.Icon(color="red", icon="star")
     ).add_to(m)
 
-# BLOCAGE DE VUE : On utilise center et zoom du session_state
+# Appel de la carte avec les coordonnées figées pour la stabilité
 donnees_carte = st_folium(
     m, 
     width="100%", 
     height=350,
     center=st.session_state.map_center,
     zoom=st.session_state.map_zoom,
-    key="map_fixed"
+    key=f"map_{st.session_state.form_count}"
 )
 
 # LOGIQUE DE DETECTION
 if donnees_carte.get("last_object_clicked"):
     obj = donnees_carte["last_object_clicked"]
+    # Synchronisation silencieuse de la vue actuelle pour éviter le saut au rechargement
+    st.session_state.map_center = [donnees_carte["center"]["lat"], donnees_carte["center"]["lng"]]
+    st.session_state.map_zoom = donnees_carte["zoom"]
+    
     if existing_data:
         for i, feat in enumerate(existing_data["features"]):
             coords = feat["geometry"]["coordinates"]
             if abs(coords[1] - obj["lat"]) < 0.0001 and abs(coords[0] - obj["lng"]) < 0.0001:
                 if st.session_state.edit_idx != i:
-                    # Récupération propre du libellé
                     raw_val = str(feat["properties"].get("libelle", ""))
                     st.session_state.edit_label = raw_val.replace('<b>', '').replace('</b>', '').split('<')[0]
                     st.session_state.edit_idx = i
                     st.session_state.clic = {"lat": obj["lat"], "lng": obj["lng"]}
-                    # On ne met PAS à jour map_center ici pour bloquer la vue
                     st.session_state[f"libelle_{st.session_state.form_count}"] = st.session_state.edit_label
                     st.rerun()
 
 if donnees_carte.get("last_clicked") and not donnees_carte.get("last_object_clicked"):
-    # Mise à jour de la vue seulement si on clique sur le fond de carte
+    # Mise à jour du centre/zoom uniquement lors d'un vrai clic sur la carte
     st.session_state.map_center = [donnees_carte["center"]["lat"], donnees_carte["center"]["lng"]]
     st.session_state.map_zoom = donnees_carte["zoom"]
+    
     if st.session_state.clic != donnees_carte["last_clicked"]:
         st.session_state.clic = donnees_carte["last_clicked"]
         st.session_state.edit_idx = None
