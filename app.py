@@ -104,7 +104,8 @@ if existing_data and "features" in existing_data:
     for i, feature in enumerate(existing_data["features"]):
         coords = feature["geometry"]["coordinates"]
         prop = feature["properties"]
-        nom_txt = str(prop.get('libelle', 'Sans nom'))
+        # Nettoyage strict pour éviter les caractères parasites
+        nom_txt = str(prop.get('libelle', 'Sans nom')).replace('<b>', '').replace('</b>', '').split('<')[0]
         
         folium.Marker(
             [coords[1], coords[0]], 
@@ -119,26 +120,35 @@ if st.session_state.clic:
         icon=folium.Icon(color="red", icon="star")
     ).add_to(m)
 
-# On désactive la mise à jour automatique du centre lors du rendu pour figer la vue
-donnees_carte = st_folium(m, width="100%", height=350, key="map_stable")
+# BLOCAGE DE VUE : On utilise center et zoom du session_state
+donnees_carte = st_folium(
+    m, 
+    width="100%", 
+    height=350,
+    center=st.session_state.map_center,
+    zoom=st.session_state.map_zoom,
+    key="map_fixed"
+)
 
-# LOGIQUE DE DETECTION DU CLIC SUR UN POINT
+# LOGIQUE DE DETECTION
 if donnees_carte.get("last_object_clicked"):
     obj = donnees_carte["last_object_clicked"]
     if existing_data:
         for i, feat in enumerate(existing_data["features"]):
             coords = feat["geometry"]["coordinates"]
-            if round(coords[1], 4) == round(obj["lat"], 4) and round(coords[0], 4) == round(obj["lng"], 4):
+            if abs(coords[1] - obj["lat"]) < 0.0001 and abs(coords[0] - obj["lng"]) < 0.0001:
                 if st.session_state.edit_idx != i:
+                    # Récupération propre du libellé
+                    raw_val = str(feat["properties"].get("libelle", ""))
+                    st.session_state.edit_label = raw_val.replace('<b>', '').replace('</b>', '').split('<')[0]
                     st.session_state.edit_idx = i
-                    st.session_state.edit_label = str(feat["properties"].get("libelle", ""))
                     st.session_state.clic = {"lat": obj["lat"], "lng": obj["lng"]}
-                    # On force le libellé dans le widget
+                    # On ne met PAS à jour map_center ici pour bloquer la vue
                     st.session_state[f"libelle_{st.session_state.form_count}"] = st.session_state.edit_label
                     st.rerun()
 
-# LOGIQUE CLIC CARTE VIDE (on ne change le zoom que si on clique sur le vide)
 if donnees_carte.get("last_clicked") and not donnees_carte.get("last_object_clicked"):
+    # Mise à jour de la vue seulement si on clique sur le fond de carte
     st.session_state.map_center = [donnees_carte["center"]["lat"], donnees_carte["center"]["lng"]]
     st.session_state.map_zoom = donnees_carte["zoom"]
     if st.session_state.clic != donnees_carte["last_clicked"]:
@@ -165,7 +175,6 @@ if st.session_state.edit_idx is not None:
             data, sha = api_github(file_name)
             data["features"][st.session_state.edit_idx]["properties"]["libelle"] = libelle
             if api_github(file_name, data=data, sha=sha, methode="PUT"):
-                st.success("Modifié !")
                 st.session_state.clic = None
                 st.session_state.edit_idx = None
                 st.session_state.form_count += 1
@@ -191,7 +200,6 @@ else:
             }
             data_save['features'].append(nouveau_poi)
             if api_github(file_name, data=data_save, sha=sha_save, methode="PUT"):
-                st.success("Enregistré !")
                 st.session_state.clic = None
                 st.session_state.form_count += 1
                 st.rerun()
