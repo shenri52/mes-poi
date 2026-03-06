@@ -61,20 +61,19 @@ if 'form_count' not in st.session_state: st.session_state.form_count = 0
 if 'map_center' not in st.session_state: st.session_state.map_center = [46.6, 2.2]
 if 'map_zoom' not in st.session_state: st.session_state.map_zoom = 5
 
-# --- LOGIQUE DE SUPPRESSION (DÉTECTION RENFORCÉE) ---
-# On utilise .get() pour être sûr de lire la valeur même si Streamlit hésite
+# --- LOGIQUE DE SUPPRESSION (DÉCLENCHÉE PAR L'URL) ---
 params = st.query_params
-if "delete_idx" in params and "file" in params:
-    idx_to_del = int(params["delete_idx"])
+if "del_idx" in params and "file" in params:
+    idx_to_del = int(params["del_idx"])
     target_file = params["file"]
     
-    data_points, sha_points = api_github(target_file)
-    if data_points and "features" in data_points:
-        if 0 <= idx_to_del < len(data_points["features"]):
-            del data_points["features"][idx_to_del]
-            if api_github(target_file, data=data_points, sha=sha_points, methode="PUT"):
-                st.toast(f"Point supprimé de {target_file}")
-                # Retour au global uniquement ici
+    data_pts, sha_pts = api_github(target_file)
+    if data_pts and "features" in data_pts:
+        if 0 <= idx_to_del < len(data_pts["features"]):
+            del data_pts["features"][idx_to_del]
+            if api_github(target_file, data=data_pts, sha=sha_pts, methode="PUT"):
+                st.toast("Point supprimé")
+                # Reset vue au global uniquement pour la suppression
                 st.session_state.map_center = [46.6, 2.2]
                 st.session_state.map_zoom = 5
                 st.query_params.clear()
@@ -125,22 +124,22 @@ if existing_data and "features" in existing_data:
         coords = feature["geometry"]["coordinates"]
         prop = feature["properties"]
         
-        # window.top.location.href est crucial pour sortir de l'iframe de la carte
-        delete_url = f"/?file={file_name}&delete_idx={i}"
+        # On passe par window.parent.location pour être certain que l'URL change au niveau du navigateur
+        del_path = f"?file={file_name}&del_idx={i}"
         
         html_popup = f"""
-        <div style="font-family: sans-serif; min-width: 150px;">
+        <div style="font-family: sans-serif; min-width: 140px; text-align:center;">
             <b>{prop.get('libelle', 'Sans nom')}</b><br>
-            <small>Date: {prop.get('date', 'N/A')}</small><br><br>
-            <button onclick="window.top.location.href='{delete_url}'" 
+            <small>{prop.get('date', '')}</small><br><br>
+            <button onclick="window.parent.location.search='{del_path}';" 
                     style="color:white; background-color:#d33; border:none; padding:8px; border-radius:4px; cursor:pointer; font-weight:bold; width:100%;">
-                🗑️ Supprimer ce point
+                🗑️ Supprimer
             </button>
         </div>
         """
         folium.Marker(
             [coords[1], coords[0]], 
-            popup=folium.Popup(html_popup, max_width=250),
+            popup=folium.Popup(html_popup, max_width=200),
             icon=folium.Icon(color="blue", icon="info-sign")
         ).add_to(m)
 
@@ -157,6 +156,7 @@ if donnees_carte.get("last_clicked"):
         st.rerun()
 
 # --- FORMULAIRE ---
+# Utilisation de form_count pour reset le champ texte sans changer de zoom
 libelle = st.text_input("Libellé", key=f"libelle_{st.session_state.form_count}")
 date_du_jour = datetime.now().strftime("%Y-%m-%d")
 
@@ -172,7 +172,7 @@ if st.button("🚀 Sauvegarder", use_container_width=True):
         data['features'].append(nouveau_poi)
         if api_github(file_name, data=data, sha=sha, methode="PUT"):
             st.success("Enregistré !")
-            # On ne réinitialise pas la vue ici (on garde le zoom actuel)
+            # On reste sur le zoom actuel
             if st.session_state.mode_selection == "Nouveau":
                 st.session_state.last_created = file_name
                 st.session_state.mode_selection = "Existant"
