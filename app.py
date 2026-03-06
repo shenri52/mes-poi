@@ -5,7 +5,7 @@ import base64
 from datetime import datetime
 import folium
 from streamlit_folium import st_folium
-from folium.plugins import LocateControl, Fullscreen, HomeButton  # <-- Plugin natif ici
+from folium.plugins import LocateControl, Fullscreen
 
 # --- 1. CONFIGURATION ET SECRETS ---
 st.set_page_config(page_title="GéoCollect de mes POI", page_icon="📍", layout="wide")
@@ -63,6 +63,12 @@ if 'map_zoom' not in st.session_state: st.session_state.map_zoom = 5
 if 'edit_idx' not in st.session_state: st.session_state.edit_idx = None
 if 'edit_label' not in st.session_state: st.session_state.edit_label = ""
 
+# --- BOUTON VUE GLOBALE HORS CARTE (PLUS FIABLE) ---
+if st.button("🏠 Remettre la vue sur la France"):
+    st.session_state.map_center = [46.6, 2.2]
+    st.session_state.map_zoom = 5
+    st.rerun()
+
 st.subheader("🗺️ Couche")
 modes = ["Existant", "Nouveau"]
 choice = st.radio("", modes, index=modes.index(st.session_state.mode_selection), horizontal=True)
@@ -93,21 +99,13 @@ else:
                     st.rerun()
 
 st.write("---")
-st.subheader("✍️ Saisie")
 
 # --- CARTE ---
 m = folium.Map(
     location=st.session_state.map_center, 
-    zoom_start=st.session_state.map_zoom
+    zoom_start=st.session_state.map_zoom,
+    zoom_control=True
 )
-
-# AJOUT DU BOUTON HOME NATIF
-# On lui donne les coordonnées de la vue globale (France)
-HomeButton(
-    extents=[[41.3, -5.1], [51.1, 9.6]], # Coordonnées approximatives de la France
-    title='Vue Globale',
-    position='topleft'
-).add_to(m)
 
 LocateControl(auto_start=False).add_to(m)
 Fullscreen(position="topright", force_separate_button=True).add_to(m)
@@ -116,7 +114,6 @@ if existing_data and "features" in existing_data:
     for i, feature in enumerate(existing_data["features"]):
         coords = feature["geometry"]["coordinates"]
         prop = feature["properties"]
-        # Nettoyage libellé
         nom_txt = str(prop.get('libelle', 'Sans nom')).replace('<b>', '').replace('</b>', '').split('<')[0]
         
         folium.Marker(
@@ -132,7 +129,6 @@ if st.session_state.clic:
         icon=folium.Icon(color="red", icon="star")
     ).add_to(m)
 
-# Rendu de la carte avec verrouillage de vue
 donnees_carte = st_folium(
     m, 
     width="100%", 
@@ -142,7 +138,7 @@ donnees_carte = st_folium(
     key=f"map_{st.session_state.form_count}"
 )
 
-# LOGIQUE DE DETECTION ET STABILITÉ
+# LOGIQUE DE DETECTION
 if donnees_carte.get("last_object_clicked"):
     obj = donnees_carte["last_object_clicked"]
     st.session_state.map_center = [donnees_carte["center"]["lat"], donnees_carte["center"]["lng"]]
@@ -172,6 +168,7 @@ if donnees_carte.get("last_clicked") and not donnees_carte.get("last_object_clic
         st.rerun()
 
 # --- FORMULAIRE ---
+st.subheader("✍️ Saisie")
 libelle = st.text_input("Libellé", key=f"libelle_{st.session_state.form_count}")
 
 if st.session_state.clic:
