@@ -93,7 +93,34 @@ else:
                     st.rerun()
 
 st.write("---")
-st.markdown("#### ✍️ Saisir/Modifier un point")
+
+# --- STYLE POUR COLLER LE BOUTON ---
+st.markdown("""
+    <style>
+    /* Supprime l'espace sous le bouton et au-dessus de la carte */
+    div.stButton > button {
+        border-bottom-left-radius: 0px !important;
+        border-bottom-right-radius: 0px !important;
+        margin-bottom: -15px !important;
+    }
+    /* Style pour que la carte n'ait pas d'arrondi en haut pour bien s'ajuster */
+    iframe {
+        border-top-left-radius: 0px !important;
+        border-top-right-radius: 0px !important;
+    }
+    </style>
+""", unsafe_allow_html=True)
+
+st.markdown("### ✍️ Saisir/Modifier un point")
+
+# --- LE BOUTON "COLLÉ" ---
+col_h, _ = st.columns([1, 4])
+with col_h:
+    if st.button("🏠 Vue France", use_container_width=True):
+        st.session_state.map_center = [46.6, 2.2]
+        st.session_state.map_zoom = 5
+        st.session_state.form_count += 1
+        st.rerun()
 
 # --- LE BOUTON DE RESET ---
 col_h, _ = st.columns([1, 3])
