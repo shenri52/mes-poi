@@ -62,7 +62,6 @@ if 'map_center' not in st.session_state: st.session_state.map_center = [46.6, 2.
 if 'map_zoom' not in st.session_state: st.session_state.map_zoom = 5
 
 # --- LOGIQUE DE SUPPRESSION POINT PAR POINT ---
-# Important : Placé ici pour intercepter l'ordre avant d'afficher la carte
 q = st.query_params
 if "delete_idx" in q and "file" in q:
     idx_to_del = int(q["delete_idx"])
@@ -74,7 +73,7 @@ if "delete_idx" in q and "file" in q:
             del data_to_mod["features"][idx_to_del]
             if api_github(target_file, data=data_to_mod, sha=sha_to_mod, methode="PUT"):
                 st.toast("Point supprimé")
-                # Reset vue
+                # Reset vue au global
                 st.session_state.map_center = [46.6, 2.2]
                 st.session_state.map_zoom = 5
                 st.query_params.clear()
@@ -113,7 +112,7 @@ else:
 
 st.write("---")
 st.subheader("✍️ Saisie")
-st.markdown('<div style="background-color: #d1e7ff; color: #004085; padding: 5px 10px; border-radius: 5px; font-size: 14px; margin-bottom: 10px;">💡 Touchez la carte pour localiser.</div>', unsafe_allow_html=True)
+st.markdown('<div style="background-color: #d1e7ff; color: #004085; padding: 5px 10px; border-radius: 5px; font-size: 14px; margin-bottom: 10px;">💡 Cliquer la carte pour localiser puis saisir le libellé.</div>', unsafe_allow_html=True)
 
 # --- CARTE ---
 m = folium.Map(location=st.session_state.map_center, zoom_start=st.session_state.map_zoom)
@@ -125,14 +124,14 @@ if existing_data and "features" in existing_data:
         coords = feature["geometry"]["coordinates"]
         prop = feature["properties"]
         
-        # Le bouton utilise window.top.location pour forcer la page parente à se recharger avec les bons paramètres
+        # On utilise l'origin complète pour s'assurer que le bouton fonctionne partout
         delete_url = f"/?file={file_name}&delete_idx={i}"
         
         html_popup = f"""
         <div style="font-family: sans-serif; min-width: 150px;">
             <b>{prop.get('libelle', 'Sans nom')}</b><br>
             <small>Date: {prop.get('date', 'N/A')}</small><br><br>
-            <button onclick="window.top.location.href='{delete_url}'" 
+            <button onclick="window.top.location.href=window.location.origin + '{delete_url}'" 
                     style="color:white; background-color:#d33; border:none; padding:8px; border-radius:4px; cursor:pointer; font-weight:bold; width:100%;">
                 🗑️ Supprimer ce point
             </button>
