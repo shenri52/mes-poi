@@ -8,7 +8,7 @@ from streamlit_folium import st_folium
 from folium.plugins import LocateControl, Fullscreen
 
 # --- 1. CONFIGURATION ET SECRETS ---
-st.set_page_config(page_title="GéoCollect de mes POI", page_icon="📍", layout="wide")
+st.set_page_config(page_title="GéoCollect", page_icon="📍", layout="wide")
 
 try:
     GITHUB_TOKEN = st.secrets["GITHUB_TOKEN"]
@@ -93,7 +93,7 @@ else:
                     st.rerun()
 
 st.write("---")
-st.subheader("✍️ Saisie")
+st.subheader("✍️ Saisir ou modifier un point")
 
 # --- CARTE ---
 m = folium.Map(
