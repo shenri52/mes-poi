@@ -126,9 +126,10 @@ st.markdown("""
     .mobile-row {
         display: flex !important;
         flex-direction: row !important;
-        align-items: center !important;
+        align-items: center !important; /* Centre verticalement les blocs */
         gap: 8px !important;
         margin-top: 5px;
+        width: 100%;
     }
     
     .mobile-label {
