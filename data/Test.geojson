@@ -42,20 +42,6 @@
                 "libelle": "Test3",
                 "date": "2026-03-06"
             }
-        },
-        {
-            "type": "Feature",
-            "geometry": {
-                "type": "Point",
-                "coordinates": [
-                    1.574196517467499,
-                    45.39453430835064
-                ]
-            },
-            "properties": {
-                "libelle": "Gjhgg",
-                "date": "2026-03-06"
-            }
         }
     ]
 }
