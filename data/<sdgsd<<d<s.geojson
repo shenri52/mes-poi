@@ -14,6 +14,20 @@
                 "libelle": "ee",
                 "date": "2026-03-06"
             }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    -2.4609375000000004,
+                    44.99588261816546
+                ]
+            },
+            "properties": {
+                "libelle": "cccccccccccccc",
+                "date": "2026-03-06"
+            }
         }
     ]
 }
