@@ -96,64 +96,57 @@ else:
 
 st.write("---")
 
-# --- 5. STYLE CSS (VERSION FINALE OPTIMISÉE POUR L'ALIGNEMENT) ---
+# --- 5. STYLE CSS (ALIGNEMENT VERTICAL FORCÉ) ---
 st.markdown("""
     <style>
-    /* 1. Réduire l'espace global entre tous les blocs Streamlit */
+    /* 1. Réduction des espaces inter-blocs */
     [data-testid="stVerticalBlock"] > div {
         padding-top: 0rem !important;
         padding-bottom: 0rem !important;
     }
 
-    /* 2. Supprimer la marge spécifique avant et après la carte (iframe) */
+    /* 2. Suppression des marges de la carte */
     div[data-testid="stHtmlBlock"] + div {
         margin-top: -20px !important;
     }
-    
     .element-container:has(iframe) {
         margin-top: -20px !important;
         margin-bottom: -20px !important;
     }
 
-    /* 3. Style du bouton Vue France (Arrondi) */
+    /* 3. Style du bouton Vue France */
     div.stButton > button:first-child {
         margin-bottom: 2px !important;
         height: 38px;
         border-radius: 8px !important;
     }
 
-    /* 4. Conteneur Flex - Alignement Vertical Strict */
+    /* 4. LE CONTENEUR FLEX (La seule option pour centrer en hauteur) */
     .mobile-row {
         display: flex !important;
         flex-direction: row !important;
-        align-items: center !important; /* Centre verticalement les enfants */
+        align-items: center !important; /* C'est cette ligne qui fait le travail */
         gap: 8px !important;
-        margin-top: 5px;
         width: 100%;
-        height: 42px; /* Définit une hauteur de ligne stable */
+        height: 42px;
     }
 
-    /* Alignement du texte "Libellé" sans décalage */
     .mobile-label {
         font-weight: bold;
         white-space: nowrap;
-        margin: 0px !important; 
-        padding: 0px !important;
+        margin: 0px !important;
         display: flex;
         align-items: center;
-        height: 100%; /* Prend toute la hauteur du conteneur pour centrer le texte */
     }
 
-    /* Neutralisation des marges internes du champ de saisie Streamlit */
+    /* Neutralisation des marges du widget de saisie */
     div[data-testid="stTextInput"] {
         margin: 0px !important;
         padding: 0px !important;
-        display: flex;
-        align-items: center;
         flex-grow: 1;
     }
 
-    /* Ajuste la boîte verte pour qu'elle s'aligne visuellement sur le champ gris */
+    /* Boîte des coordonnées alignée */
     .coord-box {
         background-color: rgba(212, 237, 218, 0.8);
         color: #155724;
@@ -163,10 +156,7 @@ st.markdown("""
         border: 1px solid #c3e6cb;
         display: flex;
         align-items: center;
-        justify-content: center;
-        height: 31px; /* Hauteur ajustée au rectangle de saisie */
-        margin: 0px !important;
-        line-height: 1 !important;
+        height: 31px; /* Correspond à la hauteur du champ de saisie */
     }
     </style>
 """, unsafe_allow_html=True)
