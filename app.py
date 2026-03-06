@@ -96,41 +96,54 @@ else:
 
 st.write("---")
 
-# --- 5. STYLE CSS (INDISPENSABLE POUR LE FOND VERT) ---
 # --- 5. STYLE CSS ---
 st.markdown("""
     <style>
-    /* Bouton Vue France : on garde l'arrondi naturel */
-    div.stButton > button:first-child {
-        margin-bottom: 5px !important; /* Petit espace au lieu de -15px */
-        height: 40px;
-        border-radius: 8px !important; /* Force un bel arrondi partout */
+    /* 1. Réduire l'espace global entre tous les blocs Streamlit */
+    [data-testid="stVerticalBlock"] > div {
+        padding-top: 0.1rem !important;
+        padding-bottom: 0.1rem !important;
+    }
+
+    /* 2. Supprimer la marge spécifique avant et après la carte (iframe) */
+    div[data-testid="stHtmlBlock"] + div {
+        margin-top: -10px !important;
     }
     
-    /* Carte : on lui rend aussi ses arrondis si besoin */
-    iframe {
+    .element-container:has(iframe) {
+        margin-top: -10px !important;
+        margin-bottom: -10px !important;
+    }
+
+    /* 3. Style du bouton Vue France */
+    div.stButton > button:first-child {
+        margin-bottom: 2px !important;
+        height: 38px;
         border-radius: 8px !important;
     }
 
-    /* Alignement vertical du mot Libellé */
-    .valign {
-        display: flex;
-        align-items: center;
-        height: 100%;
-        padding-top: 8px;
+    /* 4. Conteneur Flex pour le formulaire mobile */
+    .mobile-row {
+        display: flex !important;
+        flex-direction: row !important;
+        align-items: center !important;
+        gap: 8px !important;
+        margin-top: 5px;
+    }
+    
+    .mobile-label {
         font-weight: bold;
+        white-space: nowrap;
+        font-size: 0.9em;
     }
 
-    /* LE FOND VERT DES COORDONNÉES */
     .coord-box {
         background-color: rgba(212, 237, 218, 0.8);
         color: #155724;
-        padding: 6px 10px;
+        padding: 4px 8px;
         border-radius: 5px;
-        font-size: 0.85em;
+        font-size: 0.75em;
         border: 1px solid #c3e6cb;
-        text-align: center;
-        white-space: nowrap;
     }
     </style>
 """, unsafe_allow_html=True)
