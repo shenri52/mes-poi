@@ -61,7 +61,7 @@ if 'form_count' not in st.session_state: st.session_state.form_count = 0
 if 'map_center' not in st.session_state: st.session_state.map_center = [46.6, 2.2]
 if 'map_zoom' not in st.session_state: st.session_state.map_zoom = 5
 
-# --- LOGIQUE DE SUPPRESSION (DÉCLENCHÉE PAR L'URL) ---
+# --- LOGIQUE DE SUPPRESSION (INTERCEPTION AVANT AFFICHAGE) ---
 params = st.query_params
 if "del_idx" in params and "file" in params:
     idx_to_del = int(params["del_idx"])
@@ -73,7 +73,7 @@ if "del_idx" in params and "file" in params:
             del data_pts["features"][idx_to_del]
             if api_github(target_file, data=data_pts, sha=sha_pts, methode="PUT"):
                 st.toast("Point supprimé")
-                # Reset vue au global uniquement pour la suppression
+                # Retour au global lors d'une suppression
                 st.session_state.map_center = [46.6, 2.2]
                 st.session_state.map_zoom = 5
                 st.query_params.clear()
@@ -124,14 +124,14 @@ if existing_data and "features" in existing_data:
         coords = feature["geometry"]["coordinates"]
         prop = feature["properties"]
         
-        # On passe par window.parent.location pour être certain que l'URL change au niveau du navigateur
-        del_path = f"?file={file_name}&del_idx={i}"
+        # Commande pour recharger la page entière (window.top) avec les paramètres
+        del_cmd = f"window.top.location.href='/?file={file_name}&del_idx={i}'"
         
         html_popup = f"""
         <div style="font-family: sans-serif; min-width: 140px; text-align:center;">
             <b>{prop.get('libelle', 'Sans nom')}</b><br>
             <small>{prop.get('date', '')}</small><br><br>
-            <button onclick="window.parent.location.search='{del_path}';" 
+            <button onclick="{del_cmd}" 
                     style="color:white; background-color:#d33; border:none; padding:8px; border-radius:4px; cursor:pointer; font-weight:bold; width:100%;">
                 🗑️ Supprimer
             </button>
@@ -156,7 +156,6 @@ if donnees_carte.get("last_clicked"):
         st.rerun()
 
 # --- FORMULAIRE ---
-# Utilisation de form_count pour reset le champ texte sans changer de zoom
 libelle = st.text_input("Libellé", key=f"libelle_{st.session_state.form_count}")
 date_du_jour = datetime.now().strftime("%Y-%m-%d")
 
@@ -172,7 +171,7 @@ if st.button("🚀 Sauvegarder", use_container_width=True):
         data['features'].append(nouveau_poi)
         if api_github(file_name, data=data, sha=sha, methode="PUT"):
             st.success("Enregistré !")
-            # On reste sur le zoom actuel
+            # Conservation du zoom à la sauvegarde
             if st.session_state.mode_selection == "Nouveau":
                 st.session_state.last_created = file_name
                 st.session_state.mode_selection = "Existant"
