@@ -96,7 +96,7 @@ else:
 
 st.write("---")
 
-# --- 5. STYLE CSS ---
+# --- 5. STYLE CSS (VERSION FINALE OPTIMISÉE POUR L'ALIGNEMENT) ---
 st.markdown("""
     <style>
     /* 1. Réduire l'espace global entre tous les blocs Streamlit */
@@ -115,53 +115,58 @@ st.markdown("""
         margin-bottom: -20px !important;
     }
 
-    /* 3. Style du bouton Vue France */
+    /* 3. Style du bouton Vue France (Arrondi) */
     div.stButton > button:first-child {
         margin-bottom: 2px !important;
         height: 38px;
         border-radius: 8px !important;
     }
 
-    /* 4. Conteneur Flex pour le formulaire mobile - Version Correction Alignement */
+    /* 4. Conteneur Flex - Alignement Vertical Strict */
     .mobile-row {
         display: flex !important;
         flex-direction: row !important;
-        align-items: center !important; /* Centre verticalement les blocs */
+        align-items: center !important; /* Centre verticalement les enfants */
         gap: 8px !important;
         margin-top: 5px;
         width: 100%;
+        height: 42px; /* Définit une hauteur de ligne stable */
     }
 
-    /* Force le texte "Libellé" à ne pas avoir de marge en bas qui le pousserait vers le haut */
+    /* Alignement du texte "Libellé" sans décalage */
     .mobile-label {
         font-weight: bold;
         white-space: nowrap;
-        margin-bottom: 0px !important; 
-        padding-bottom: 0px !important;
+        margin: 0px !important; 
+        padding: 0px !important;
         display: flex;
         align-items: center;
+        height: 100%; /* Prend toute la hauteur du conteneur pour centrer le texte */
     }
 
-    /* Supprime la marge par défaut de Streamlit sous le champ de saisie */
+    /* Neutralisation des marges internes du champ de saisie Streamlit */
     div[data-testid="stTextInput"] {
-        margin-bottom: 0px !important;
-        padding-bottom: 0px !important;
+        margin: 0px !important;
+        padding: 0px !important;
         display: flex;
         align-items: center;
+        flex-grow: 1;
     }
 
-    /* Ajuste la boîte verte pour qu'elle ait la même attitude que le champ de saisie */
+    /* Ajuste la boîte verte pour qu'elle s'aligne visuellement sur le champ gris */
     .coord-box {
         background-color: rgba(212, 237, 218, 0.8);
         color: #155724;
-        padding: 5px 8px;
+        padding: 0px 10px;
         border-radius: 5px;
         font-size: 0.75em;
         border: 1px solid #c3e6cb;
         display: flex;
         align-items: center;
-        height: 34px; /* Hauteur fixe pour s'aligner sur le champ de texte */
-        margin-bottom: 0px !important;
+        justify-content: center;
+        height: 31px; /* Hauteur ajustée au rectangle de saisie */
+        margin: 0px !important;
+        line-height: 1 !important;
     }
     </style>
 """, unsafe_allow_html=True)
