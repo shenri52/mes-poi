@@ -63,19 +63,6 @@ if 'map_zoom' not in st.session_state: st.session_state.map_zoom = 5
 if 'edit_idx' not in st.session_state: st.session_state.edit_idx = None
 if 'edit_label' not in st.session_state: st.session_state.edit_label = ""
 
-# Gestion du clic de modification via URL (pour rester simple et stable)
-params = st.query_params.to_dict()
-if "edit" in params and "file" in params:
-    idx_to_edit = int(params["edit"])
-    file_to_edit = params["file"]
-    data_edit, _ = api_github(file_to_edit)
-    if data_edit and idx_to_edit < len(data_edit["features"]):
-        feat = data_edit["features"][idx_to_edit]
-        st.session_state.edit_idx = idx_to_edit
-        st.session_state.edit_label = feat["properties"].get("libelle", "")
-        st.session_state.clic = {"lat": feat["geometry"]["coordinates"][1], "lng": feat["geometry"]["coordinates"][0]}
-        st.query_params.clear()
-
 st.subheader("🗺️ Couche")
 modes = ["Existant", "Nouveau"]
 idx_defaut = modes.index(st.session_state.mode_selection)
@@ -119,21 +106,11 @@ if existing_data and "features" in existing_data:
     for i, feature in enumerate(existing_data["features"]):
         coords = feature["geometry"]["coordinates"]
         prop = feature["properties"]
-        # Lien pour charger le point dans le formulaire
-        edit_url = f"/?file={file_name}&edit={i}"
-        html_popup = f"""
-        <div style="font-family: sans-serif; min-width: 150px;">
-            <b>{prop.get('libelle', 'Sans nom')}</b><br>
-            <small>{prop.get('date', '')}</small><br><br>
-            <button onclick="window.top.location.href='{edit_url}'" 
-                    style="color:white; background-color:#007bff; border:none; padding:8px; border-radius:4px; cursor:pointer; font-weight:bold; width:100%;">
-                📝 Modifier ce point
-            </button>
-        </div>
-        """
+        
+        # On garde les étiquettes pour la lecture simple
         folium.Marker(
             [coords[1], coords[0]], 
-            popup=folium.Popup(html_popup, max_width=250),
+            popup=folium.Popup(f"<b>{prop.get('libelle', 'Sans nom')}</b>", max_width=200),
             icon=folium.Icon(color="blue", icon="info-sign")
         ).add_to(m)
 
@@ -145,7 +122,23 @@ if st.session_state.clic:
 
 donnees_carte = st_folium(m, width="100%", height=350)
 
-if donnees_carte.get("last_clicked"):
+# LOGIQUE DE DETECTION DU CLIC SUR UN POINT
+if donnees_carte.get("last_object_clicked"):
+    lat_click = donnees_carte["last_object_clicked"]["lat"]
+    lng_click = donnees_carte["last_object_clicked"]["lng"]
+    
+    # On cherche le point correspondant dans nos données locales
+    if existing_data:
+        for i, feat in enumerate(existing_data["features"]):
+            coords = feat["geometry"]["coordinates"]
+            if round(coords[1], 5) == round(lat_click, 5) and round(coords[0], 5) == round(lng_click, 5):
+                st.session_state.edit_idx = i
+                st.session_state.edit_label = feat["properties"].get("libelle", "")
+                st.session_state.clic = {"lat": lat_click, "lng": lng_click}
+                st.rerun()
+
+# Clic sur la carte (vide) pour un nouveau point
+if donnees_carte.get("last_clicked") and not donnees_carte.get("last_object_clicked"):
     st.session_state.map_center = [donnees_carte["center"]["lat"], donnees_carte["center"]["lng"]]
     st.session_state.map_zoom = donnees_carte["zoom"]
     if st.session_state.clic != donnees_carte["last_clicked"]:
@@ -155,8 +148,8 @@ if donnees_carte.get("last_clicked"):
         st.rerun()
 
 # --- FORMULAIRE ---
-valeur_libelle = st.session_state.edit_label if st.session_state.edit_idx is not None else ""
-libelle = st.text_input("Libellé", value=valeur_libelle, key=f"libelle_{st.session_state.form_count}")
+valeur_input = st.session_state.edit_label if st.session_state.edit_idx is not None else ""
+libelle = st.text_input("Libellé", value=valeur_input, key=f"libelle_{st.session_state.form_count}")
 
 if st.session_state.clic:
     st.markdown(f'''
@@ -172,19 +165,21 @@ if st.session_state.clic:
 
 date_du_jour = datetime.now().strftime("%Y-%m-%d")
 
+# BOUTONS ADAPTATIFS
 if st.session_state.edit_idx is not None:
-    col_mod, col_supp = st.columns(2)
-    with col_mod:
-        if st.button("📝 Valider modification", use_container_width=True):
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("📝 Modifier", use_container_width=True):
             data, sha = api_github(file_name)
             data["features"][st.session_state.edit_idx]["properties"]["libelle"] = libelle
             if api_github(file_name, data=data, sha=sha, methode="PUT"):
                 st.success("Modifié !")
                 st.session_state.clic = None
                 st.session_state.edit_idx = None
+                st.session_state.edit_label = ""
                 st.session_state.form_count += 1
                 st.rerun()
-    with col_supp:
+    with col2:
         if st.button("🗑️ Supprimer le point", use_container_width=True):
             data, sha = api_github(file_name)
             del data["features"][st.session_state.edit_idx]
@@ -192,6 +187,7 @@ if st.session_state.edit_idx is not None:
                 st.toast("Point supprimé")
                 st.session_state.clic = None
                 st.session_state.edit_idx = None
+                st.session_state.edit_label = ""
                 st.session_state.form_count += 1
                 st.rerun()
 else:
