@@ -5,9 +5,10 @@ import base64
 from datetime import datetime
 import folium
 from streamlit_folium import st_folium
+from folium.plugins import LocateControl
 
 # --- 1. CONFIGURATION ET SECRETS ---
-st.set_page_config(page_title="GéoCollect Pro", page_icon="📍", layout="wide")
+st.set_page_config(page_title="GéoCollect de mes POI", page_icon="📍", layout="wide")
 
 try:
     GITHUB_TOKEN = st.secrets["GITHUB_TOKEN"]
@@ -15,16 +16,21 @@ try:
     REPO_NAME = st.secrets["REPO_NAME"]
     BRANCH = st.secrets.get("BRANCH", "main")
 except KeyError:
-    st.error("⚠️ Secrets GitHub manquants (TOKEN, OWNER ou REPO).")
+    st.error("⚠️ Secrets GitHub manquants.")
     st.stop()
 
-# --- 2. FONCTION GITHUB ---
+# --- 2. FONCTIONS GITHUB ---
+def lister_geojson_github():
+    url = f"https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/contents/"
+    headers = {"Authorization": f"token {GITHUB_TOKEN}"}
+    r = requests.get(url, headers=headers)
+    if r.status_code == 200:
+        return [f['name'] for f in r.json() if f['name'].endswith('.geojson')]
+    return []
+
 def api_github(file_path, data=None, sha=None, methode="GET"):
     url = f"https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/contents/{file_path}"
-    headers = {
-        "Authorization": f"token {GITHUB_TOKEN}",
-        "Accept": "application/vnd.github.v3+json"
-    }
+    headers = {"Authorization": f"token {GITHUB_TOKEN}", "Accept": "application/vnd.github.v3+json"}
     
     if methode == "GET":
         r = requests.get(url, headers=headers)
@@ -33,35 +39,37 @@ def api_github(file_path, data=None, sha=None, methode="GET"):
             content = json.loads(base64.b64decode(res['content']).decode('utf-8'))
             return content, res['sha']
         return None, None
-
     elif methode == "PUT":
         content_encoded = base64.b64encode(json.dumps(data, indent=4).encode('utf-8')).decode('utf-8')
-        payload = {
-            "message": f"📍 Ajout POI ({datetime.now().strftime('%d/%m %H:%M')})",
-            "content": content_encoded,
-            "branch": BRANCH
-        }
+        payload = {"message": f"📍 Ajout POI", "content": content_encoded, "branch": BRANCH}
         if sha: payload["sha"] = sha
         r = requests.put(url, json=payload, headers=headers)
         return r.status_code in [200, 201]
 
 # --- 3. INTERFACE ---
-st.title("📍 GéoCollect GeoJSON")
+st.title("📍 GéoCollect de mes POI")
 
-if 'clic' not in st.session_state:
-    st.session_state.clic = None
+# Initialisation des états
+if 'clic' not in st.session_state: st.session_state.clic = None
+if 'mode_action' not in st.session_state: st.session_state.mode_action = "Existant"
+if 'last_created' not in st.session_state: st.session_state.last_created = None
 
 col_saisie, col_carte = st.columns([1, 2])
 
 with col_saisie:
-    st.subheader("📁 Couche")
-    mode = st.radio("Action", ["Existant", "Nouveau"], horizontal=True)
+    st.subheader("📂 Sélection du jeu de données")
+    st.session_state.mode_action = st.radio("Action", ["Existant", "Nouveau"], horizontal=True, key="radio_mode")
     
-    if mode == "Nouveau":
-        nom_saisi = st.text_input("Nom du fichier (ex: velos)", "").strip()
+    if st.session_state.mode_action == "Nouveau":
+        nom_saisi = st.text_input("Nom du nouveau fichier (ex: velos)", "").strip()
         file_name = f"{nom_saisi}.geojson" if nom_saisi else None
     else:
-        file_name = st.text_input("Fichier existant (ex: velos.geojson)")
+        liste_fichiers = lister_geojson_github()
+        index_defaut = 0
+        if st.session_state.last_created in liste_fichiers:
+            index_defaut = liste_fichiers.index(st.session_state.last_created)
+        
+        file_name = st.selectbox("Choisir un fichier existant", liste_fichiers, index=index_defaut)
 
     st.write("---")
     st.subheader("✍️ Saisie")
@@ -89,13 +97,21 @@ with col_saisie:
             
             if api_github(file_name, data=data, sha=sha, methode="PUT"):
                 st.success("Enregistré sur GitHub !")
+                # Logique de bascule après création
+                if st.session_state.mode_action == "Nouveau":
+                    st.session_state.last_created = file_name
+                    st.session_state.mode_action = "Existant"
+                
                 st.session_state.clic = None
                 st.rerun()
         else:
-            st.error("Données manquantes.")
+            st.error("Données manquantes (Fichier, Libellé ou Clic).")
 
 with col_carte:
     m = folium.Map(location=[46.6, 2.2], zoom_start=5)
+    # Bouton pour zoomer sur sa position
+    LocateControl(auto_start=False).add_to(m)
+    
     if st.session_state.clic:
         folium.Marker([st.session_state.clic['lat'], st.session_state.clic['lng']]).add_to(m)
     
