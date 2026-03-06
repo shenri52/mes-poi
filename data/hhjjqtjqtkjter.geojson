@@ -42,6 +42,20 @@
                 "libelle": "w<<",
                 "date": "2026-03-06"
             }
+        },
+        {
+            "type": "Feature",
+            "geometry": {
+                "type": "Point",
+                "coordinates": [
+                    4.463195800781251,
+                    48.99103162515999
+                ]
+            },
+            "properties": {
+                "libelle": "QGGeg",
+                "date": "2026-03-06"
+            }
         }
     ]
 }
