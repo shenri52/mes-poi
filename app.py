@@ -111,8 +111,8 @@ st.markdown("""
     }
     
     .element-container:has(iframe) {
-        margin-top: -10px !important;
-        margin-bottom: -10px !important;
+        margin-top: -20px !important;
+        margin-bottom: -20px !important;
     }
 
     /* 3. Style du bouton Vue France */
