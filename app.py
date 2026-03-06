@@ -111,7 +111,7 @@ st.markdown("""
         margin-bottom: -20px !important;
     }
     div.stButton > button:first-child {
-        margin-bottom: 2px !important;
+        margin-bottom: 1px !important;
         height: 38px;
         border-radius: 8px !important;
     }
