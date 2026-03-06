@@ -74,7 +74,7 @@ current_sha = None
 file_name = None
 
 if st.session_state.mode_selection == "Nouveau":
-    nom_saisi = st.text_input("Nom du nouveau fichier (ex: velos)", "").strip()
+    nom_saisi = st.text_input("Nom du nouveau fichier", "").strip()
     file_name = f"{nom_saisi}.geojson" if nom_saisi else None
 else:
     liste_fichiers = lister_geojson_github()
@@ -96,21 +96,40 @@ else:
 
 st.write("---")
 
-# --- 5. STYLE CSS ET CARTE ---
+# --- 5. STYLE CSS POUR COLLER LES ÉLÉMENTS ---
 st.markdown("""
     <style>
+    /* Bouton Vue France collé à la carte */
     div.stButton > button:first-child {
         border-bottom-left-radius: 0px !important;
         border-bottom-right-radius: 0px !important;
         margin-bottom: -15px !important;
-        height: 45px;
+        height: 40px;
     }
     iframe {
         border-top-left-radius: 0px !important;
         border-top-right-radius: 0px !important;
     }
-    /* Réduction drastique de l'espace vertical entre widgets */
-    .stTextInput { margin-top: -10px; }
+    
+    /* Conteneur Flex pour Libellé + Input sur une seule ligne */
+    .custom-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 5px;
+    }
+    .custom-label {
+        font-weight: bold;
+        min-width: 60px;
+    }
+    .stTextInput {
+        flex-grow: 1;
+    }
+    /* Supprimer les marges par défaut de Streamlit */
+    div[data-testid="stVerticalBlock"] > div {
+        padding-top: 0rem !important;
+        padding-bottom: 0rem !important;
+    }
     </style>
 """, unsafe_allow_html=True)
 
@@ -150,7 +169,7 @@ donnees_carte = st_folium(
     key=f"map_{st.session_state.form_count}"
 )
 
-# --- 6. LOGIQUE DE CLIC ---
+# --- LOGIQUE DE CLIC ---
 if donnees_carte.get("last_object_clicked"):
     obj = donnees_carte["last_object_clicked"]
     st.session_state.map_center = [donnees_carte["center"]["lat"], donnees_carte["center"]["lng"]]
@@ -176,19 +195,17 @@ if donnees_carte.get("last_clicked") and not donnees_carte.get("last_object_clic
         st.session_state[f"libelle_{st.session_state.form_count}"] = ""
         st.rerun()
 
-# --- 7. FORMULAIRE COMPACT (Libellé collé au champ) ---
+# --- 7. FORMULAIRE RÉUSSI (LIBELLE ET TEXT_INPUT SUR UNE LIGNE SERRÉE) ---
+st.markdown('<div class="custom-row"><div class="custom-label">Libellé</div>', unsafe_allow_html=True)
+libelle = st.text_input("Libellé", key=f"libelle_{st.session_state.form_count}", label_visibility="collapsed")
+st.markdown('</div>', unsafe_allow_html=True)
+
 if st.session_state.clic:
     st.markdown(f'''
         <div style="background-color: rgba(212, 237, 218, 0.4); color: #155724; padding: 4px 10px; border-radius: 5px; margin-bottom: 8px; font-size: 0.85em; border: 1px solid #c3e6cb;">
             📍 Point : {st.session_state.clic["lat"]:.5f}, {st.session_state.clic["lng"]:.5f}
         </div>
     ''', unsafe_allow_html=True)
-
-col_lab, col_inp = st.columns([0.8, 5])
-with col_lab:
-    st.markdown('<p style="padding-top: 8px; font-weight: bold; margin-bottom: 0px;">Libellé</p>', unsafe_allow_html=True)
-with col_inp:
-    libelle = st.text_input("", key=f"libelle_{st.session_state.form_count}", label_visibility="collapsed")
 
 # --- 8. ACTIONS ---
 if st.session_state.edit_idx is not None:
