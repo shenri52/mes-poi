@@ -66,11 +66,18 @@ query_params = st.query_params
 if "delete_idx" in query_params and "file" in query_params:
     idx_to_del = int(query_params["delete_idx"])
     target_file = query_params["file"]
+    
+    # On récupère les coordonnées envoyées dans l'URL pour garder la vue
+    if "lat" in query_params and "lng" in query_params:
+        st.session_state.map_center = [float(query_params["lat"]), float(query_params["lng"])]
+    if "zoom" in query_params:
+        st.session_state.map_zoom = int(query_params["zoom"])
+
     data, sha = api_github(target_file)
     if data and 0 <= idx_to_del < len(data["features"]):
         del data["features"][idx_to_del]
         if api_github(target_file, data=data, sha=sha, methode="PUT"):
-            st.toast(f"Point supprimé dans {target_file}")
+            st.toast(f"Point supprimé")
             st.query_params.clear()
             st.rerun()
 
@@ -114,18 +121,20 @@ st.markdown('<div style="background-color: #d1e7ff; color: #004085; padding: 5px
 # --- CARTE ---
 m = folium.Map(location=st.session_state.map_center, zoom_start=st.session_state.map_zoom)
 LocateControl(auto_start=False).add_to(m)
-Fullscreen(position="topright", title="Plein écran", title_cancel="Sortir", force_separate_button=True).add_to(m)
+Fullscreen(position="topright", force_separate_button=True).add_to(m)
 
 if existing_data and "features" in existing_data:
     for i, feature in enumerate(existing_data["features"]):
         coords = feature["geometry"]["coordinates"]
         prop = feature["properties"]
-        # Création d'un lien de suppression via URL query params
+        # On injecte centre et zoom dans l'URL pour les retrouver après le rerun
+        c_lat, c_lng = st.session_state.map_center
+        zoom = st.session_state.map_zoom
         html_popup = f"""
         <b>{prop.get('libelle', 'Sans nom')}</b><br>
         Date: {prop.get('date', 'N/A')}<br><br>
-        <a href="/?file={file_name}&delete_idx={i}" target="_self" 
-           style="color:red; text-decoration:none; font-weight:bold; border:1px solid red; padding:3px; border-radius:3px;">
+        <a href="/?file={file_name}&delete_idx={i}&lat={c_lat}&lng={c_lng}&zoom={zoom}" target="_self" 
+           style="color:red; text-decoration:none; font-weight:bold; border:1px solid red; padding:3px; border-radius:3px; font-size:12px;">
            🗑️ Supprimer ce point
         </a>
         """
