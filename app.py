@@ -106,9 +106,11 @@ if existing_data and "features" in existing_data:
     for i, feature in enumerate(existing_data["features"]):
         coords = feature["geometry"]["coordinates"]
         prop = feature["properties"]
+        nom_point = prop.get('libelle', 'Sans nom')
         folium.Marker(
             [coords[1], coords[0]], 
-            popup=folium.Popup(f"<b>{prop.get('libelle', 'Sans nom')}</b>", max_width=200),
+            popup=folium.Popup(f"<b>{nom_point}</b>", max_width=200),
+            tooltip=nom_point, # Ajout du survol
             icon=folium.Icon(color="blue", icon="info-sign")
         ).add_to(m)
 
@@ -120,7 +122,7 @@ if st.session_state.clic:
 
 donnees_carte = st_folium(m, width="100%", height=350)
 
-# SAUVEGARDE SYSTÉMATIQUE DU ZOOM ET CENTRE
+# SAUVEGARDE DU ZOOM ET CENTRE
 if donnees_carte.get("center"):
     st.session_state.map_center = [donnees_carte["center"]["lat"], donnees_carte["center"]["lng"]]
 if donnees_carte.get("zoom"):
@@ -136,7 +138,7 @@ if donnees_carte.get("last_object_clicked"):
             if round(coords[1], 5) == round(lat_click, 5) and round(coords[0], 5) == round(lng_click, 5):
                 if st.session_state.edit_idx != i:
                     st.session_state.edit_idx = i
-                    st.session_state.edit_label = feat["properties"].get("libelle", "")
+                    st.session_state.edit_label = feat["properties"].get("libelle", "Sans nom")
                     st.session_state.clic = {"lat": lat_click, "lng": lng_click}
                     st.session_state[f"libelle_{st.session_state.form_count}"] = st.session_state.edit_label
                     st.rerun()
