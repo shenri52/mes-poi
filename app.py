@@ -103,7 +103,14 @@ else:
 
 st.write("---")
 st.subheader("✍️ Saisie")
-st.info("💡 Cliquer sur la carte et saisir le libellé.")
+st.markdown(
+    """
+    <div style="background-color: #d1e7ff; color: #004085; padding: 5px 10px; border-radius: 5px; font-size: 14px; margin-bottom: 10px;">
+        💡 Touchez la carte pour localiser.
+    </div>
+    """,
+    unsafe_allow_html=True
+)
 
 # --- CARTE ---
 m = folium.Map(location=[46.6, 2.2], zoom_start=5)
