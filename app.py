@@ -107,7 +107,7 @@ st.markdown("""
 
     /* 2. Supprimer la marge spécifique avant et après la carte (iframe) */
     div[data-testid="stHtmlBlock"] + div {
-        margin-top: -10px !important;
+        margin-top: -20px !important;
     }
     
     .element-container:has(iframe) {
