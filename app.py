@@ -5,7 +5,7 @@ import base64
 from datetime import datetime
 import folium
 from streamlit_folium import st_folium
-from folium.plugins import LocateControl, Fullscreen
+from folium.plugins import LocateControl, Fullscreen, EasyButton # Ajout de EasyButton
 from branca.element import Element
 
 # --- 1. CONFIGURATION ET SECRETS ---
@@ -103,34 +103,12 @@ m = folium.Map(
     zoom_control=True
 )
 
-# Bouton Vue Globale (Maison)
-home_js = """
-<script>
-setTimeout(function() {
-    var maps = document.querySelectorAll('.leaflet-container');
-    maps.forEach(function(el) {
-        if (el._leaflet_map) {
-            var m = el._leaflet_map;
-            var HomeBtn = L.Control.extend({
-                options: { position: 'topleft' },
-                onAdd: function (map) {
-                    var container = L.DomUtil.create('div', 'leaflet-bar leaflet-control');
-                    container.style.backgroundColor = 'white';
-                    container.style.width = '30px'; container.style.height = '30px';
-                    container.style.display = 'flex'; container.style.alignItems = 'center';
-                    container.style.justifyContent = 'center'; container.style.cursor = 'pointer';
-                    container.innerHTML = '<span style="font-size:18px;">🏠</span>';
-                    container.onclick = function() { map.setView([46.6, 2.2], 5); };
-                    return container;
-                }
-            });
-            m.addControl(new HomeBtn());
-        }
-    });
-}, 500);
-</script>
-"""
-m.get_root().html.add_child(Element(home_js))
+# NOUVELLE METHODE ROBUSTE POUR LA VUE GLOBALE
+EasyButton(
+    icon='fa-home',
+    title='Vue Globale',
+    onClick=folium.JsCode('function(btn, map){ map.setView([46.6, 2.2], 5); }')
+).add_to(m)
 
 LocateControl(auto_start=False).add_to(m)
 Fullscreen(position="topright", force_separate_button=True).add_to(m)
@@ -228,5 +206,5 @@ else:
             data_save['features'].append(nouveau_poi)
             if api_github(file_name, data=data_save, sha=sha_save, methode="PUT"):
                 st.session_state.clic = None
-                st.session_state.form_count += 1 # On change de clé, donc le champ sera vide
+                st.session_state.form_count += 1
                 st.rerun()
