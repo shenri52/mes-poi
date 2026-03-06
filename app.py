@@ -61,7 +61,7 @@ if 'form_count' not in st.session_state: st.session_state.form_count = 0
 if 'map_center' not in st.session_state: st.session_state.map_center = [46.6, 2.2]
 if 'map_zoom' not in st.session_state: st.session_state.map_zoom = 5
 
-# --- LOGIQUE DE SUPPRESSION (REPRISE DE LA VERSION FONCTIONNELLE) ---
+# --- LOGIQUE DE SUPPRESSION (REPRISE DU CODE FONCTIONNEL) ---
 if "delete_idx" in st.query_params and "file" in st.query_params:
     idx_to_del = int(st.query_params["delete_idx"])
     target_file = st.query_params["file"]
@@ -71,6 +71,7 @@ if "delete_idx" in st.query_params and "file" in st.query_params:
         del data["features"][idx_to_del]
         if api_github(target_file, data=data, sha=sha, methode="PUT"):
             st.toast("Point supprimé")
+            # Retour au global lors d'une suppression
             st.session_state.map_center = [46.6, 2.2]
             st.session_state.map_zoom = 5
             st.query_params.clear()
@@ -121,7 +122,7 @@ if existing_data and "features" in existing_data:
         coords = feature["geometry"]["coordinates"]
         prop = feature["properties"]
         
-        # Le lien force le rechargement du "top" (la page parente)
+        # On utilise window.top pour recharger toute l'appli
         delete_url = f"/?file={file_name}&delete_idx={i}"
         
         html_popup = f"""
@@ -168,7 +169,7 @@ if st.button("🚀 Sauvegarder", use_container_width=True):
         data['features'].append(nouveau_poi)
         if api_github(file_name, data=data, sha=sha, methode="PUT"):
             st.success("Enregistré !")
-            # On ne touche pas à la vue ici, on garde le zoom actuel
+            # On reste sur le zoom actuel (pas de modif session_state)
             if st.session_state.mode_selection == "Nouveau":
                 st.session_state.last_created = file_name
                 st.session_state.mode_selection = "Existant"
