@@ -6,20 +6,6 @@
             "geometry": {
                 "type": "Point",
                 "coordinates": [
-                    2.6367187500000004,
-                    48.42920055556841
-                ]
-            },
-            "properties": {
-                "libelle": "ee",
-                "date": "2026-03-06"
-            }
-        },
-        {
-            "type": "Feature",
-            "geometry": {
-                "type": "Point",
-                "coordinates": [
                     -2.4609375000000004,
                     44.99588261816546
                 ]
