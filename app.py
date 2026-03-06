@@ -97,19 +97,21 @@ else:
 st.write("---")
 
 # --- 5. STYLE CSS (INDISPENSABLE POUR LE FOND VERT) ---
+# --- 5. STYLE CSS ---
 st.markdown("""
     <style>
-    /* Style du bouton Vue France */
+    /* Bouton Vue France : on garde l'arrondi naturel */
     div.stButton > button:first-child {
-        border-bottom-left-radius: 0px !important;
-        border-bottom-right-radius: 0px !important;
-        margin-bottom: -15px !important;
+        margin-bottom: 5px !important; /* Petit espace au lieu de -15px */
         height: 40px;
+        border-radius: 8px !important; /* Force un bel arrondi partout */
     }
+    
+    /* Carte : on lui rend aussi ses arrondis si besoin */
     iframe {
-        border-top-left-radius: 0px !important;
-        border-top-right-radius: 0px !important;
+        border-radius: 8px !important;
     }
+
     /* Alignement vertical du mot Libellé */
     .valign {
         display: flex;
@@ -118,6 +120,7 @@ st.markdown("""
         padding-top: 8px;
         font-weight: bold;
     }
+
     /* LE FOND VERT DES COORDONNÉES */
     .coord-box {
         background-color: rgba(212, 237, 218, 0.8);
@@ -195,7 +198,7 @@ if donnees_carte.get("last_clicked") and not donnees_carte.get("last_object_clic
         st.rerun()
 
 # --- 7. FORMULAIRE 3 COLONNES ---
-c_lab, c_inp, c_pts = st.columns([0.4, 5, 2])
+c_lab, c_inp, c_pts = st.columns([0.4, 5, 1.5])
 
 with c_lab:
     st.markdown('<div class="valign">Libellé</div>', unsafe_allow_html=True)
