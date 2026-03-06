@@ -96,6 +96,42 @@ else:
 
 st.write("---")
 
+# --- 5. STYLE CSS (INDISPENSABLE POUR LE FOND VERT) ---
+st.markdown("""
+    <style>
+    /* Style du bouton Vue France */
+    div.stButton > button:first-child {
+        border-bottom-left-radius: 0px !important;
+        border-bottom-right-radius: 0px !important;
+        margin-bottom: -15px !important;
+        height: 40px;
+    }
+    iframe {
+        border-top-left-radius: 0px !important;
+        border-top-right-radius: 0px !important;
+    }
+    /* Alignement vertical du mot Libellé */
+    .valign {
+        display: flex;
+        align-items: center;
+        height: 100%;
+        padding-top: 8px;
+        font-weight: bold;
+    }
+    /* LE FOND VERT DES COORDONNÉES */
+    .coord-box {
+        background-color: rgba(212, 237, 218, 0.8);
+        color: #155724;
+        padding: 6px 10px;
+        border-radius: 5px;
+        font-size: 0.85em;
+        border: 1px solid #c3e6cb;
+        text-align: center;
+        white-space: nowrap;
+    }
+    </style>
+""", unsafe_allow_html=True)
+
 st.markdown("### ✍️ Saisir ou modifier")
 
 col_h, _ = st.columns([1, 4])
@@ -159,7 +195,6 @@ if donnees_carte.get("last_clicked") and not donnees_carte.get("last_object_clic
         st.rerun()
 
 # --- 7. FORMULAIRE 3 COLONNES ---
-# Largeurs : Libellé (0.6), Saisie (flexible), Coordonnées (2.2)
 c_lab, c_inp, c_pts = st.columns([0.4, 5, 2])
 
 with c_lab:
@@ -172,7 +207,7 @@ with c_pts:
     if st.session_state.clic:
         st.markdown(f'<div class="coord-box">📍 {st.session_state.clic["lat"]:.5f}, {st.session_state.clic["lng"]:.5f}</div>', unsafe_allow_html=True)
     else:
-        st.markdown('<div class="coord-box" style="background-color: transparent; border: 1px dashed #ccc; color: #ccc;">Attente clic...</div>', unsafe_allow_html=True)
+        st.markdown('<div class="coord-box" style="background-color: transparent; border: 1px dashed #ccc; color: #ccc;">Attente...</div>', unsafe_allow_html=True)
 
 # --- 8. ACTIONS ---
 if st.session_state.edit_idx is not None:
