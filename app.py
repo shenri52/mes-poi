@@ -65,7 +65,7 @@ if 'edit_label' not in st.session_state: st.session_state.edit_label = ""
 
 st.markdown("#### 🗺️ Couche")
 modes = ["Existant", "Nouveau"]
-choice = st.radio("", modes, index=modes.index(st.session_state.mode_selection), horizontal=True)
+choice = st.radio("", modes, index=modes.index(st.session_state.mode_selection), horizontal=True, label_visibility="collapsed")
 st.session_state.mode_selection = choice
 
 existing_data = None 
