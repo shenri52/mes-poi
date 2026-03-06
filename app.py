@@ -10,6 +10,24 @@ from folium.plugins import LocateControl, Fullscreen
 # --- 1. CONFIGURATION ET SECRETS ---
 st.set_page_config(page_title="GéoCollect", page_icon="📍", layout="wide")
 
+# --- FONCTION DE PROTECTION ---
+def verifier_mot_de_passe():
+    if "authentifie" not in st.session_state:
+        st.session_state["authentifie"] = False
+
+    if not st.session_state["authentifie"]:
+        st.markdown("<h1 style='text-align: center;'>🔒 Accès réservé</h1>", unsafe_allow_html=True)
+        # On utilise st.secrets pour ne pas afficher le MDP dans le code public
+        mdp_saisi = st.text_input("Veuillez saisir le mot de passe :", type="password")
+        if st.button("Se connecter", use_container_width=True):
+            if mdp_saisi == st.secrets["APP_PASSWORD"]:
+                st.session_state["authentifie"] = True
+                st.rerun()
+            else:
+                st.error("Mot de passe incorrect")
+        return False
+    return True
+
 try:
     GITHUB_TOKEN = st.secrets["GITHUB_TOKEN"]
     REPO_OWNER = st.secrets["REPO_OWNER"]
