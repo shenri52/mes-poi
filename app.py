@@ -62,21 +62,23 @@ if 'map_center' not in st.session_state: st.session_state.map_center = [46.6, 2.
 if 'map_zoom' not in st.session_state: st.session_state.map_zoom = 5
 
 # --- LOGIQUE DE SUPPRESSION POINT PAR POINT ---
-query_params = st.query_params
-if "delete_idx" in query_params and "file" in query_params:
-    idx_to_del = int(query_params["delete_idx"])
-    target_file = query_params["file"]
+# Important : Placé ici pour intercepter l'ordre avant d'afficher la carte
+q = st.query_params
+if "delete_idx" in q and "file" in q:
+    idx_to_del = int(q["delete_idx"])
+    target_file = q["file"]
     
-    data, sha = api_github(target_file)
-    if data and 0 <= idx_to_del < len(data["features"]):
-        del data["features"][idx_to_del]
-        if api_github(target_file, data=data, sha=sha, methode="PUT"):
-            st.toast("Point supprimé")
-            # Pour la suppression, on peut choisir de revenir au global
-            st.session_state.map_center = [46.6, 2.2]
-            st.session_state.map_zoom = 5
-            st.query_params.clear()
-            st.rerun()
+    data_to_mod, sha_to_mod = api_github(target_file)
+    if data_to_mod and "features" in data_to_mod:
+        if 0 <= idx_to_del < len(data_to_mod["features"]):
+            del data_to_mod["features"][idx_to_del]
+            if api_github(target_file, data=data_to_mod, sha=sha_to_mod, methode="PUT"):
+                st.toast("Point supprimé")
+                # Reset vue
+                st.session_state.map_center = [46.6, 2.2]
+                st.session_state.map_zoom = 5
+                st.query_params.clear()
+                st.rerun()
 
 st.subheader("🗺️ Couche")
 modes = ["Existant", "Nouveau"]
@@ -111,7 +113,7 @@ else:
 
 st.write("---")
 st.subheader("✍️ Saisie")
-st.markdown('<div style="background-color: #d1e7ff; color: #004085; padding: 5px 10px; border-radius: 5px; font-size: 14px; margin-bottom: 10px;">💡Cliquer la carte pour localiser puis saisir le libellé.</div>', unsafe_allow_html=True)
+st.markdown('<div style="background-color: #d1e7ff; color: #004085; padding: 5px 10px; border-radius: 5px; font-size: 14px; margin-bottom: 10px;">💡 Touchez la carte pour localiser.</div>', unsafe_allow_html=True)
 
 # --- CARTE ---
 m = folium.Map(location=st.session_state.map_center, zoom_start=st.session_state.map_zoom)
@@ -123,7 +125,7 @@ if existing_data and "features" in existing_data:
         coords = feature["geometry"]["coordinates"]
         prop = feature["properties"]
         
-        # URL de suppression pour window.top
+        # Le bouton utilise window.top.location pour forcer la page parente à se recharger avec les bons paramètres
         delete_url = f"/?file={file_name}&delete_idx={i}"
         
         html_popup = f"""
@@ -147,7 +149,6 @@ if st.session_state.clic:
 
 donnees_carte = st_folium(m, width="100%", height=350)
 
-# Mémorisation du zoom pendant la saisie
 if donnees_carte.get("last_clicked"):
     st.session_state.map_center = [donnees_carte["center"]["lat"], donnees_carte["center"]["lng"]]
     st.session_state.map_zoom = donnees_carte["zoom"]
@@ -171,11 +172,8 @@ if st.button("🚀 Sauvegarder", use_container_width=True):
         data['features'].append(nouveau_poi)
         if api_github(file_name, data=data, sha=sha, methode="PUT"):
             st.success("Enregistré !")
-            
-            # Réinitialisation de la vue au global après enregistrement
             st.session_state.map_center = [46.6, 2.2]
             st.session_state.map_zoom = 5
-            
             if st.session_state.mode_selection == "Nouveau":
                 st.session_state.last_created = file_name
                 st.session_state.mode_selection = "Existant"
