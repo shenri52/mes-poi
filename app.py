@@ -61,7 +61,7 @@ if 'form_count' not in st.session_state: st.session_state.form_count = 0
 if 'map_center' not in st.session_state: st.session_state.map_center = [46.6, 2.2]
 if 'map_zoom' not in st.session_state: st.session_state.map_zoom = 5
 
-# --- LOGIQUE DE SUPPRESSION DE POINT (CORRIGÉE) ---
+# --- LOGIQUE DE SUPPRESSION DE POINT (MISE À JOUR COUCHE UNIQUEMENT) ---
 params = st.query_params.to_dict()
 if "delete_idx" in params and "file" in params:
     idx_to_del = int(params["delete_idx"])
@@ -70,11 +70,9 @@ if "delete_idx" in params and "file" in params:
     if data_del and 0 <= idx_to_del < len(data_del["features"]):
         del data_del["features"][idx_to_del]
         if api_github(target_file, data=data_del, sha=sha_del, methode="PUT"):
-            st.toast("Point supprimé")
-            st.session_state.map_center = [46.6, 2.2]
-            st.session_state.map_zoom = 5
+            st.toast(f"Point supprimé dans {target_file}")
+            # On nettoie l'URL sans recharger toute l'app pour laisser la couche se rafraîchir
             st.query_params.clear()
-            st.rerun()
 
 st.subheader("🗺️ Couche")
 modes = ["Existant", "Nouveau"]
