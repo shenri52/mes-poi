@@ -93,24 +93,6 @@ else:
                     st.rerun()
 
 st.write("---")
-
-# --- STYLE POUR COLLER LE BOUTON ---
-st.markdown("""
-    <style>
-    /* Supprime l'espace sous le bouton et au-dessus de la carte */
-    div.stButton > button {
-        border-bottom-left-radius: 0px !important;
-        border-bottom-right-radius: 0px !important;
-        margin-bottom: -15px !important;
-    }
-    /* Style pour que la carte n'ait pas d'arrondi en haut pour bien s'ajuster */
-    iframe {
-        border-top-left-radius: 0px !important;
-        border-top-right-radius: 0px !important;
-    }
-    </style>
-""", unsafe_allow_html=True)
-
 st.markdown("### ✍️ Saisir/Modifier un point")
 
 # --- LE BOUTON "COLLÉ" ---
