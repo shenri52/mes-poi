@@ -125,6 +125,7 @@ st.markdown("""
     .coord-box {
         background-color: rgba(212, 237, 218, 0.8);
         color: #155724;
+        margin-bottom: 1px !important;
         padding: 5px 8px;
         border-radius: 5px;
         font-size: 0.75em;
