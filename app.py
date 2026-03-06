@@ -58,6 +58,9 @@ if 'clic' not in st.session_state: st.session_state.clic = None
 if 'mode_selection' not in st.session_state: st.session_state.mode_selection = "Existant"
 if 'last_created' not in st.session_state: st.session_state.last_created = None
 if 'form_count' not in st.session_state: st.session_state.form_count = 0
+# Mémorisation de la vue de la carte
+if 'map_center' not in st.session_state: st.session_state.map_center = [46.6, 2.2]
+if 'map_zoom' not in st.session_state: st.session_state.map_zoom = 5
 
 st.subheader("🗺️ Couche")
 modes = ["Existant", "Nouveau"]
@@ -80,7 +83,6 @@ else:
     if st.session_state.last_created in liste_fichiers:
         idx_fichier = liste_fichiers.index(st.session_state.last_created)
     
-    # --- MISE EN PAGE : LISTE + BOUTON SUPPRIMER ---
     col_list, col_del = st.columns([3, 1])
     
     with col_list:
@@ -89,7 +91,7 @@ else:
             options=liste_fichiers, 
             format_func=lambda x: dict_affichage.get(x, x),
             index=idx_fichier,
-            label_visibility="collapsed" # Optionnel: pour gagner de la place si besoin
+            label_visibility="collapsed"
         )
     
     with col_del:
@@ -113,7 +115,8 @@ st.markdown(
 )
 
 # --- CARTE ---
-m = folium.Map(location=[46.6, 2.2], zoom_start=5)
+# On utilise les valeurs stockées en session pour éviter le reset visuel
+m = folium.Map(location=st.session_state.map_center, zoom_start=st.session_state.map_zoom)
 LocateControl(auto_start=False).add_to(m)
 
 if existing_data and "features" in existing_data:
@@ -131,7 +134,13 @@ if st.session_state.clic:
                   icon=folium.Icon(color="red", icon="star")).add_to(m)
 
 donnees_carte = st_folium(m, width="100%", height=350)
+
+# Mise à jour de la position et du clic sans perdre le zoom
 if donnees_carte.get("last_clicked"):
+    # On sauvegarde systématiquement le centre et le zoom actuels de la carte
+    st.session_state.map_center = [donnees_carte["center"]["lat"], donnees_carte["center"]["lng"]]
+    st.session_state.map_zoom = donnees_carte["zoom"]
+    
     if st.session_state.clic != donnees_carte["last_clicked"]:
         st.session_state.clic = donnees_carte["last_clicked"]
         st.rerun()
