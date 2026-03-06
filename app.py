@@ -61,23 +61,21 @@ if 'form_count' not in st.session_state: st.session_state.form_count = 0
 if 'map_center' not in st.session_state: st.session_state.map_center = [46.6, 2.2]
 if 'map_zoom' not in st.session_state: st.session_state.map_zoom = 5
 
-# --- LOGIQUE DE SUPPRESSION D'UN POINT PRÉCIS ---
+# --- LOGIQUE DE SUPPRESSION ---
 query_params = st.query_params
 if "delete_idx" in query_params and "file" in query_params:
     idx_to_del = int(query_params["delete_idx"])
     target_file = query_params["file"]
     
-    # On récupère les coordonnées envoyées dans l'URL pour garder la vue
-    if "lat" in query_params and "lng" in query_params:
-        st.session_state.map_center = [float(query_params["lat"]), float(query_params["lng"])]
-    if "zoom" in query_params:
-        st.session_state.map_zoom = int(query_params["zoom"])
+    # Récupération de la vue pour éviter le dezoom
+    if "lat" in query_params: st.session_state.map_center = [float(query_params["lat"]), float(query_params["lng"])]
+    if "zoom" in query_params: st.session_state.map_zoom = int(query_params["zoom"])
 
     data, sha = api_github(target_file)
     if data and 0 <= idx_to_del < len(data["features"]):
         del data["features"][idx_to_del]
         if api_github(target_file, data=data, sha=sha, methode="PUT"):
-            st.toast(f"Point supprimé")
+            st.toast("Point supprimé")
             st.query_params.clear()
             st.rerun()
 
@@ -103,20 +101,18 @@ else:
     
     col_list, col_del = st.columns([3, 1])
     with col_list:
-        file_name = st.selectbox("Choisir un jeu de donnée existant", options=liste_fichiers, 
-                                 format_func=lambda x: dict_affichage.get(x, x), index=idx_fichier, label_visibility="collapsed")
+        file_name = st.selectbox("Choisir", options=liste_fichiers, format_func=lambda x: dict_affichage.get(x, x), index=idx_fichier, label_visibility="collapsed")
     with col_del:
         if file_name:
             existing_data, current_sha = api_github(file_name)
-            if st.button("🗑️", use_container_width=True, help="Supprimer tout le fichier"):
+            if st.button("🗑️", use_container_width=True):
                 if api_github(file_name, sha=current_sha, methode="DELETE"):
-                    st.warning(f"Fichier supprimé")
                     st.session_state.last_created = None
                     st.rerun()
 
 st.write("---")
 st.subheader("✍️ Saisie")
-st.markdown('<div style="background-color: #d1e7ff; color: #004085; padding: 5px 10px; border-radius: 5px; font-size: 14px; margin-bottom: 10px;">💡 Cliquer sur la carte et saisir le libellé.</div>', unsafe_allow_html=True)
+st.markdown('<div style="background-color: #d1e7ff; color: #004085; padding: 5px 10px; border-radius: 5px; font-size: 14px; margin-bottom: 10px;">💡 Touchez la carte pour localiser.</div>', unsafe_allow_html=True)
 
 # --- CARTE ---
 m = folium.Map(location=st.session_state.map_center, zoom_start=st.session_state.map_zoom)
@@ -127,16 +123,19 @@ if existing_data and "features" in existing_data:
     for i, feature in enumerate(existing_data["features"]):
         coords = feature["geometry"]["coordinates"]
         prop = feature["properties"]
-        # On injecte centre et zoom dans l'URL pour les retrouver après le rerun
+        
+        # JS pour forcer le rechargement de la fenêtre PARENTE (window.top)
         c_lat, c_lng = st.session_state.map_center
         zoom = st.session_state.map_zoom
+        delete_url = f"/?file={file_name}&delete_idx={i}&lat={c_lat}&lng={c_lng}&zoom={zoom}"
+        
         html_popup = f"""
         <b>{prop.get('libelle', 'Sans nom')}</b><br>
         Date: {prop.get('date', 'N/A')}<br><br>
-        <a href="/?file={file_name}&delete_idx={i}&lat={c_lat}&lng={c_lng}&zoom={zoom}" target="_self" 
-           style="color:red; text-decoration:none; font-weight:bold; border:1px solid red; padding:3px; border-radius:3px; font-size:12px;">
-           🗑️ Supprimer ce point
-        </a>
+        <button onclick="window.top.location.href='{delete_url}'" 
+                style="color:white; background-color:red; border:none; padding:5px; border-radius:3px; cursor:pointer; font-weight:bold; width:100%;">
+            🗑️ Supprimer ce point
+        </button>
         """
         folium.Marker(
             [coords[1], coords[0]], 
@@ -145,8 +144,7 @@ if existing_data and "features" in existing_data:
         ).add_to(m)
 
 if st.session_state.clic:
-    folium.Marker([st.session_state.clic['lat'], st.session_state.clic['lng']], 
-                  icon=folium.Icon(color="red", icon="star")).add_to(m)
+    folium.Marker([st.session_state.clic['lat'], st.session_state.clic['lng']], icon=folium.Icon(color="red", icon="star")).add_to(m)
 
 donnees_carte = st_folium(m, width="100%", height=350)
 
@@ -158,11 +156,8 @@ if donnees_carte.get("last_clicked"):
         st.rerun()
 
 # --- FORMULAIRE ---
-libelle = st.text_input("Libellé du point", key=f"libelle_{st.session_state.form_count}")
+libelle = st.text_input("Libellé", key=f"libelle_{st.session_state.form_count}")
 date_du_jour = datetime.now().strftime("%Y-%m-%d")
-
-if st.session_state.clic:
-    st.success(f"📍 {st.session_state.clic['lat']:.4f}, {st.session_state.clic['lng']:.4f}")
 
 if st.button("🚀 Sauvegarder", use_container_width=True):
     if file_name and libelle and st.session_state.clic:
@@ -182,5 +177,3 @@ if st.button("🚀 Sauvegarder", use_container_width=True):
             st.session_state.clic = None
             st.session_state.form_count += 1
             st.rerun()
-    else:
-        st.error("Données manquantes.")
