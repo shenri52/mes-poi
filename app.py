@@ -111,12 +111,13 @@ st.title("📍 GéoCollect")
 st.markdown("#### 🗺️ Couche")
 modes = ["Existant", "Nouveau"]
 
+# Correction : On utilise une clé dynamique pour éviter le blocage du double clic
 choice = st.radio(
     "", modes, 
     index=modes.index(st.session_state.mode_selection), 
     horizontal=True, 
     label_visibility="collapsed",
-    key=f"radio_mode_{st.session_state.form_count}"
+    key="radio_mode_selector"
 )
 
 if choice != st.session_state.mode_selection:
@@ -278,6 +279,5 @@ else:
             if api_github(file_name, data=data_save, sha=sha_save, methode="PUT"):
                 gerer_index(ajouter=file_name)
                 st.session_state.extra_fields = [] 
-                st.session_state.mode_selection = "Existant"
-                st.session_state.last_created = file_name
+                st.session_state.mode_selection = "Existant"; st.session_state.last_created = file_name
                 st.session_state.clic = None; st.session_state.form_count += 1; st.rerun()
