@@ -166,8 +166,14 @@ Fullscreen(position="topright", force_separate_button=True).add_to(m)
 if existing_data and "features" in existing_data:
     for i, feature in enumerate(existing_data["features"]):
         coords = feature["geometry"]["coordinates"]
-        nom_txt = str(feature["properties"].get('libelle', 'Sans nom')).replace('<b>', '').replace('</b>', '').split('<')[0]
-        folium.Marker([coords[1], coords[0]], tooltip=nom_txt, icon=folium.Icon(color="blue", icon="info-sign")).add_to(m)
+        prop = feature["properties"]
+        nom_txt = str(prop.get('libelle', 'Sans nom')).replace('<b>', '').replace('</b>', '').split('<')[0]
+        
+        tooltip_content = f"<b>{nom_txt}</b>"
+        for k, v in prop.items():
+            if k not in ['libelle', 'date']: tooltip_content += f"<br>{k}: {v}"
+        
+        folium.Marker([coords[1], coords[0]], tooltip=tooltip_content, icon=folium.Icon(color="blue", icon="info-sign")).add_to(m)
 
 if st.session_state.clic:
     folium.Marker([st.session_state.clic['lat'], st.session_state.clic['lng']], icon=folium.Icon(color="red", icon="star")).add_to(m)
@@ -206,7 +212,15 @@ with c_lab: st.markdown('<div class="valign">Libellé</div>', unsafe_allow_html=
 with c_inp: 
     libelle = st.text_input("Libellé", key=f"libelle_{st.session_state.form_count}", label_visibility="collapsed")
     
-    # AJOUT DYNAMIQUE (Uniquement en mode Nouveau)
+    # MODIFICATION : Affiche les champs existants pour les éditer
+    modifs_extra = {}
+    if st.session_state.edit_idx is not None and existing_data:
+        p = existing_data["features"][st.session_state.edit_idx]["properties"]
+        for k, v in p.items():
+            if k not in ['libelle', 'date']:
+                modifs_extra[k] = st.text_input(f"{k}", value=v, key=f"edit_{k}_{st.session_state.form_count}")
+
+    # CRÉATION : Interface d'ajout de nouveaux champs
     if st.session_state.mode_selection == "Nouveau":
         st.info(f"💡 {10 - len(st.session_state.extra_fields)} champs personnalisés disponibles.")
         for i, field in enumerate(st.session_state.extra_fields):
@@ -214,8 +228,7 @@ with c_inp:
             with col_k: field['key'] = st.text_input(f"Nom {i}", key=f"k_{i}_{st.session_state.form_count}", placeholder="Nom (ex: CP)", label_visibility="collapsed")
             with col_v: field['val'] = st.text_input(f"Val {i}", key=f"v_{i}_{st.session_state.form_count}", placeholder="Valeur", label_visibility="collapsed")
             with col_d: 
-                if st.button("❌", key=f"del_{i}"):
-                    st.session_state.extra_fields.pop(i); st.rerun()
+                if st.button("❌", key=f"del_{i}"): st.session_state.extra_fields.pop(i); st.rerun()
         if len(st.session_state.extra_fields) < 10:
             if st.button(f"➕ Ajouter un champ ({10 - len(st.session_state.extra_fields)} restants)"):
                 st.session_state.extra_fields.append({'key': '', 'val': ''}); st.rerun()
@@ -232,7 +245,10 @@ if st.session_state.edit_idx is not None:
     with c1:
         if st.button("📝 Modifier", use_container_width=True):
             data, sha = api_github(file_name)
+            # Mise à jour libellé + tous les champs extra affichés
             data["features"][st.session_state.edit_idx]["properties"]["libelle"] = libelle
+            for k, v in modifs_extra.items():
+                data["features"][st.session_state.edit_idx]["properties"][k] = v
             if api_github(file_name, data=data, sha=sha, methode="PUT"):
                 st.session_state.clic = None; st.session_state.edit_idx = None; st.session_state.form_count += 1; st.rerun()
     with c2:
@@ -244,7 +260,6 @@ if st.session_state.edit_idx is not None:
 else:
     if st.button("🚀 Sauvegarder", use_container_width=True):
         if file_name and libelle and st.session_state.clic:
-            # Récupération des champs bonus
             extra_props = {f['key'].strip(): f['val'].strip() for f in st.session_state.extra_fields if f['key'].strip()}
             data_save, sha_save = api_github(file_name)
             if data_save is None: data_save = {"type": "FeatureCollection", "features": []}
@@ -256,6 +271,6 @@ else:
             data_save['features'].append(nouveau_poi)
             if api_github(file_name, data=data_save, sha=sha_save, methode="PUT"):
                 gerer_index(ajouter=file_name)
-                st.session_state.extra_fields = [] # Reset des champs bonus
+                st.session_state.extra_fields = [] 
                 st.session_state.mode_selection = "Existant"; st.session_state.last_created = file_name
                 st.session_state.clic = None; st.session_state.form_count += 1; st.rerun()
