@@ -10,6 +10,36 @@ from folium.plugins import LocateControl, Fullscreen
 # --- 1. CONFIGURATION ET SECRETS ---
 st.set_page_config(page_title="GéoCollect", page_icon="📍", layout="wide")
 
+# --- NOUVEAU : FONCTION POP-UP (DIALOG) ---
+@st.dialog("ℹ️ À propos de GéoCollect")
+def afficher_a_propos():
+    liste_fichiers = gerer_index()
+    nb_fichiers = len(liste_fichiers)
+    
+    # Calcul du poids réel via l'API GitHub pour le dossier 'data'
+    url_poids = f"https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/contents/data"
+    headers = {"Authorization": f"token {GITHUB_TOKEN}"}
+    poids_total_octets = 0
+    try:
+        r = requests.get(url_poids, headers=headers)
+        if r.status_code == 200:
+            poids_total_octets = sum(f.get('size', 0) for f in r.json())
+    except:
+        pass
+    
+    poids_ko = round(poids_total_octets / 1024, 2)
+    
+    st.markdown(f"""
+    📊 **Statistiques du dépôt :**
+    - Jeux de données : `{nb_fichiers}`
+    - Taille totale : `{poids_ko} Ko`
+    
+    ---
+    **GéoCollect v3.0** Interface de gestion de points d'intérêt avec synchronisation GitHub.
+    """)
+    if st.button("Fermer", use_container_width=True):
+        st.rerun()
+
 def verifier_mot_de_passe():
     if "authentifie" not in st.session_state:
         st.session_state["authentifie"] = False
@@ -105,7 +135,14 @@ if 'edit_idx' not in st.session_state: st.session_state.edit_idx = None
 if 'edit_label' not in st.session_state: st.session_state.edit_label = ""
 if 'extra_fields' not in st.session_state: st.session_state.extra_fields = []
 
-st.title("📍 GéoCollect")
+# --- ENTÊTE AVEC TITRE ET BOUTON ---
+t_col1, t_col2 = st.columns([4, 1])
+with t_col1:
+    st.title("📍 GéoCollect")
+with t_col2:
+    st.write(" ") # Alignement
+    if st.button("ℹ️ À propos", use_container_width=True):
+        afficher_a_propos()
 
 # --- 4. SELECTION DE LA COUCHE ---
 st.markdown("#### 🗺️ Couche")
@@ -124,7 +161,6 @@ if choice != st.session_state.mode_selection:
     st.session_state.edit_label = ""
     st.session_state.clic = None
     st.session_state.edit_idx = None
-    # Reset forcé des widgets de saisie
     if f"libelle_{st.session_state.form_count}" in st.session_state:
         st.session_state[f"libelle_{st.session_state.form_count}"] = ""
     st.rerun()
