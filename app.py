@@ -11,19 +11,25 @@ from folium.plugins import LocateControl, Fullscreen
 st.set_page_config(page_title="GéoCollect", page_icon="📍", layout="wide")
 
 # --- NOUVEAU : FONCTION POP-UP (DIALOG) ---
+# --- NOUVEAU : FONCTION POP-UP (DIALOG) AVEC LISTE RÉELLE ---
 @st.dialog("ℹ️ À propos de GéoCollect")
 def afficher_a_propos():
-    liste_fichiers = gerer_index()
-    nb_fichiers = len(liste_fichiers)
+    liste_index = gerer_index()
     
-    # Calcul du poids réel via l'API GitHub pour le dossier 'data'
+    # Récupération de la liste réelle et du poids via GitHub (uniquement au clic)
     url_poids = f"https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/contents/data"
     headers = {"Authorization": f"token {GITHUB_TOKEN}"}
     poids_total_octets = 0
+    fichiers_reels = []
+    
     try:
         r = requests.get(url_poids, headers=headers)
         if r.status_code == 200:
-            poids_total_octets = sum(f.get('size', 0) for f in r.json())
+            contenu = r.json()
+            for f in contenu:
+                if f['name'].endswith('.geojson'):
+                    poids_total_octets += f.get('size', 0)
+                    fichiers_reels.append(f"{f['name']} ({round(f.get('size', 0)/1024, 1)} Ko)")
     except:
         pass
     
@@ -31,12 +37,23 @@ def afficher_a_propos():
     
     st.markdown(f"""
     📊 **Statistiques du dépôt :**
-    - Jeux de données : `{nb_fichiers}`
+    - Fichiers indexés : `{len(liste_index)}`
     - Taille totale : `{poids_ko} Ko`
     """)
+
+    # La rubrique "Voir les fichiers" demandée
+    with st.expander("📂 Voir les fichiers sur le serveur"):
+        if fichiers_reels:
+            for item in sorted(fichiers_reels):
+                # On met une petite coche si le fichier est bien dans l'index
+                nom_f = item.split(" (")[0]
+                statut = "✅" if nom_f in liste_index else "⚠️ Non indexé"
+                st.write(f"{statut} {item}")
+        else:
+            st.info("Aucun fichier détecté sur GitHub.")
+
     if st.button("Fermer", use_container_width=True):
         st.rerun()
-
 def verifier_mot_de_passe():
     if "authentifie" not in st.session_state:
         st.session_state["authentifie"] = False
