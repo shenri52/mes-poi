@@ -37,13 +37,10 @@ except KeyError:
     st.error("⚠️ Secrets GitHub manquants.")
     st.stop()
 
-# --- 2. LOGIQUE D'INDEXATION (OPTIMISATION API) ---
-
+# --- 2. LOGIQUE D'INDEXATION ---
 def api_github_brut(file_path, data=None, sha=None, methode="GET"):
-    """Fonction générique pour manipuler n'importe quel fichier (dont index.json)"""
     url = f"https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/contents/{file_path}"
     headers = {"Authorization": f"token {GITHUB_TOKEN}", "Accept": "application/vnd.github.v3+json"}
-    
     if methode == "GET":
         r = requests.get(url, headers=headers)
         if r.status_code == 200:
@@ -54,15 +51,11 @@ def api_github_brut(file_path, data=None, sha=None, methode="GET"):
         content_encoded = base64.b64encode(json.dumps(data, indent=4).encode('utf-8')).decode('utf-8')
         payload = {"message": f"🔄 Maj {file_path}", "content": content_encoded, "branch": BRANCH}
         if sha: payload["sha"] = sha
-        r = requests.put(url, json=payload, headers=headers)
-        return r.status_code in [200, 201]
+        return requests.put(url, json=payload, headers=headers).status_code in [200, 201]
 
 def gerer_index(ajouter=None, supprimer=None):
-    """Gère la liste des fichiers via index.json pour éviter de lister le dépôt"""
     index_file = "data/index.json"
     index_data, sha = api_github_brut(index_file)
-    
-    # Initialisation si l'index n'existe pas
     if index_data is None:
         url_scan = f"https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/contents/data"
         r = requests.get(url_scan, headers={"Authorization": f"token {GITHUB_TOKEN}"})
@@ -70,29 +63,21 @@ def gerer_index(ajouter=None, supprimer=None):
         index_data = {"fichiers": fichiers}
         api_github_brut(index_file, data=index_data, methode="PUT")
         return fichiers
-
     liste = index_data.get("fichiers", [])
     maj = False
-
     if ajouter and ajouter not in liste:
-        liste.append(ajouter)
-        maj = True
+        liste.append(ajouter); maj = True
     if supprimer and supprimer in liste:
-        liste.remove(supprimer)
-        maj = True
-        
+        liste.remove(supprimer); maj = True
     if maj:
         index_data["fichiers"] = liste
         api_github_brut(index_file, data=index_data, sha=sha, methode="PUT")
-    
     return liste
 
-# Fonctions d'origine pour les GeoJSON
 def api_github(file_path, data=None, sha=None, methode="GET"):
     full_path = f"data/{file_path}"
     url = f"https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/contents/{full_path}"
     headers = {"Authorization": f"token {GITHUB_TOKEN}", "Accept": "application/vnd.github.v3+json"}
-    
     if methode == "GET":
         r = requests.get(url, headers=headers)
         if r.status_code == 200:
@@ -118,10 +103,11 @@ if 'map_center' not in st.session_state: st.session_state.map_center = [46.6, 2.
 if 'map_zoom' not in st.session_state: st.session_state.map_zoom = 5
 if 'edit_idx' not in st.session_state: st.session_state.edit_idx = None
 if 'edit_label' not in st.session_state: st.session_state.edit_label = ""
+if 'extra_fields' not in st.session_state: st.session_state.extra_fields = []
 
 st.title("📍 GéoCollect")
 
-# --- 4. SELECTION DE LA COUCHE (UTILISE L'INDEX) ---
+# --- 4. SELECTION DE LA COUCHE ---
 st.markdown("#### 🗺️ Couche")
 modes = ["Existant", "Nouveau"]
 choice = st.radio("", modes, index=modes.index(st.session_state.mode_selection), horizontal=True, label_visibility="collapsed")
@@ -133,7 +119,7 @@ if st.session_state.mode_selection == "Nouveau":
     nom_saisi = st.text_input("Nom du nouveau fichier", "").strip()
     file_name = f"{nom_saisi}.geojson" if nom_saisi else None
 else:
-    liste_fichiers = gerer_index() # Optimisé : on ne scanne plus le dossier
+    liste_fichiers = gerer_index()
     dict_affichage = {f: f.replace('.geojson', '') for f in liste_fichiers}
     idx_fichier = 0
     if st.session_state.last_created in liste_fichiers:
@@ -147,13 +133,13 @@ else:
             existing_data, current_sha = api_github(file_name)
             if st.button("🗑️", key="btn_del_file", use_container_width=True):
                 if api_github(file_name, sha=current_sha, methode="DELETE"):
-                    gerer_index(supprimer=file_name) # Mise à jour index
+                    gerer_index(supprimer=file_name)
                     st.session_state.last_created = None
                     st.rerun()
 
 st.write("---")
 
-# --- 5. STYLE CSS (TES RÉGLAGES D'ORIGINE) ---
+# --- 5. STYLE CSS ---
 st.markdown("""
     <style>
     [data-testid="stVerticalBlock"] > div { padding-top: 0rem !important; padding-bottom: 0rem !important; }
@@ -170,11 +156,8 @@ st.markdown("### ✍️ Saisir ou modifier")
 col_h, _ = st.columns([1, 4])
 with col_h:
     if st.button("🏠 Vue France", use_container_width=True):
-        st.session_state.map_center = [46.6, 2.2]
-        st.session_state.map_zoom = 5
-        st.session_state.clic = None
-        st.session_state.form_count += 1 
-        st.rerun()
+        st.session_state.map_center = [46.6, 2.2]; st.session_state.map_zoom = 5
+        st.session_state.clic = None; st.session_state.form_count += 1; st.rerun()
 
 m = folium.Map(location=st.session_state.map_center, zoom_start=st.session_state.map_zoom)
 LocateControl(auto_start=False).add_to(m)
@@ -183,8 +166,7 @@ Fullscreen(position="topright", force_separate_button=True).add_to(m)
 if existing_data and "features" in existing_data:
     for i, feature in enumerate(existing_data["features"]):
         coords = feature["geometry"]["coordinates"]
-        prop = feature["properties"]
-        nom_txt = str(prop.get('libelle', 'Sans nom')).replace('<b>', '').replace('</b>', '').split('<')[0]
+        nom_txt = str(feature["properties"].get('libelle', 'Sans nom')).replace('<b>', '').replace('</b>', '').split('<')[0]
         folium.Marker([coords[1], coords[0]], tooltip=nom_txt, icon=folium.Icon(color="blue", icon="info-sign")).add_to(m)
 
 if st.session_state.clic:
@@ -218,17 +200,33 @@ if donnees_carte.get("last_clicked") and not donnees_carte.get("last_object_clic
         st.session_state[f"libelle_{st.session_state.form_count}"] = ""
         st.rerun()
 
-# --- 7. FORMULAIRE 3 COLONNES ---
+# --- 7. FORMULAIRE & CHAMPS DYNAMIQUES ---
 c_lab, c_inp, c_pts = st.columns([0.4, 5, 1.5])
 with c_lab: st.markdown('<div class="valign">Libellé</div>', unsafe_allow_html=True)
-with c_inp: libelle = st.text_input("Libellé", key=f"libelle_{st.session_state.form_count}", label_visibility="collapsed")
+with c_inp: 
+    libelle = st.text_input("Libellé", key=f"libelle_{st.session_state.form_count}", label_visibility="collapsed")
+    
+    # AJOUT DYNAMIQUE (Uniquement en mode Nouveau)
+    if st.session_state.mode_selection == "Nouveau":
+        st.info(f"💡 {10 - len(st.session_state.extra_fields)} champs personnalisés disponibles.")
+        for i, field in enumerate(st.session_state.extra_fields):
+            col_k, col_v, col_d = st.columns([2, 3, 0.5])
+            with col_k: field['key'] = st.text_input(f"Nom {i}", key=f"k_{i}_{st.session_state.form_count}", placeholder="Nom (ex: CP)", label_visibility="collapsed")
+            with col_v: field['val'] = st.text_input(f"Val {i}", key=f"v_{i}_{st.session_state.form_count}", placeholder="Valeur", label_visibility="collapsed")
+            with col_d: 
+                if st.button("❌", key=f"del_{i}"):
+                    st.session_state.extra_fields.pop(i); st.rerun()
+        if len(st.session_state.extra_fields) < 10:
+            if st.button(f"➕ Ajouter un champ ({10 - len(st.session_state.extra_fields)} restants)"):
+                st.session_state.extra_fields.append({'key': '', 'val': ''}); st.rerun()
+
 with c_pts:
     if st.session_state.clic:
         st.markdown(f'<div class="coord-box">📍 {st.session_state.clic["lat"]:.5f}, {st.session_state.clic["lng"]:.5f}</div>', unsafe_allow_html=True)
     else:
         st.markdown('<div class="coord-box" style="background-color: transparent; border: 1px dashed #ccc; color: #ccc;">Attente...</div>', unsafe_allow_html=True)
 
-# --- 8. ACTIONS (AVEC RESET DES CHAMPS) ---
+# --- 8. ACTIONS ---
 if st.session_state.edit_idx is not None:
     c1, c2 = st.columns(2)
     with c1:
@@ -236,34 +234,28 @@ if st.session_state.edit_idx is not None:
             data, sha = api_github(file_name)
             data["features"][st.session_state.edit_idx]["properties"]["libelle"] = libelle
             if api_github(file_name, data=data, sha=sha, methode="PUT"):
-                st.session_state.clic = None
-                st.session_state.edit_idx = None
-                st.session_state.form_count += 1 # Reset des champs
-                st.rerun()
+                st.session_state.clic = None; st.session_state.edit_idx = None; st.session_state.form_count += 1; st.rerun()
     with c2:
         if st.button("🗑️ Supprimer", use_container_width=True):
             data, sha = api_github(file_name)
             del data["features"][st.session_state.edit_idx]
             if api_github(file_name, data=data, sha=sha, methode="PUT"):
-                st.session_state.clic = None
-                st.session_state.edit_idx = None
-                st.session_state.form_count += 1 # Reset des champs
-                st.rerun()
+                st.session_state.clic = None; st.session_state.edit_idx = None; st.session_state.form_count += 1; st.rerun()
 else:
     if st.button("🚀 Sauvegarder", use_container_width=True):
         if file_name and libelle and st.session_state.clic:
+            # Récupération des champs bonus
+            extra_props = {f['key'].strip(): f['val'].strip() for f in st.session_state.extra_fields if f['key'].strip()}
             data_save, sha_save = api_github(file_name)
             if data_save is None: data_save = {"type": "FeatureCollection", "features": []}
             nouveau_poi = {
                 "type": "Feature",
                 "geometry": {"type": "Point", "coordinates": [st.session_state.clic['lng'], st.session_state.clic['lat']]},
-                "properties": {"libelle": libelle, "date": datetime.now().strftime("%Y-%m-%d")}
+                "properties": {"libelle": libelle, "date": datetime.now().strftime("%Y-%m-%d"), **extra_props}
             }
             data_save['features'].append(nouveau_poi)
             if api_github(file_name, data=data_save, sha=sha_save, methode="PUT"):
-                gerer_index(ajouter=file_name) # On met à jour l'index
-                st.session_state.mode_selection = "Existant"
-                st.session_state.last_created = file_name
-                st.session_state.clic = None
-                st.session_state.form_count += 1 # Reset des champs
-                st.rerun()
+                gerer_index(ajouter=file_name)
+                st.session_state.extra_fields = [] # Reset des champs bonus
+                st.session_state.mode_selection = "Existant"; st.session_state.last_created = file_name
+                st.session_state.clic = None; st.session_state.form_count += 1; st.rerun()
