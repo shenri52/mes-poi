@@ -151,7 +151,7 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# --- 6. FRAGMENT POUR LA CARTE ET LE FORMULAIRE ---
+# --- 6. FRAGMENT POUR L'INTERFACE ---
 @st.fragment
 def afficher_interface_dynamique(existing_data, current_sha, file_name):
     st.markdown("### ✍️ Saisir ou modifier")
@@ -179,9 +179,14 @@ def afficher_interface_dynamique(existing_data, current_sha, file_name):
     if st.session_state.clic:
         folium.Marker([st.session_state.clic['lat'], st.session_state.clic['lng']], icon=folium.Icon(color="red", icon="star")).add_to(m)
 
-    donnees_carte = st_folium(m, width="100%", height=325, center=st.session_state.map_center, zoom=st.session_state.map_zoom, key=f"map_{st.session_state.form_count}")
+    # OPTIMISATION : retour d'objets spécifique pour limiter le scintillement
+    donnees_carte = st_folium(
+        m, width="100%", height=325, 
+        center=st.session_state.map_center, zoom=st.session_state.map_zoom, 
+        key=f"map_{st.session_state.form_count}",
+        returned_objects=["last_clicked", "last_object_clicked", "center", "zoom"]
+    )
 
-    # LOGIQUE DE CLIC (SANS RERUN GLOBAL SI POSSIBLE)
     if donnees_carte.get("last_object_clicked"):
         obj = donnees_carte["last_object_clicked"]
         st.session_state.map_center = [donnees_carte["center"]["lat"], donnees_carte["center"]["lng"]]
@@ -207,7 +212,6 @@ def afficher_interface_dynamique(existing_data, current_sha, file_name):
             st.session_state[f"libelle_{st.session_state.form_count}"] = ""
             st.rerun()
 
-    # FORMULAIRE & CHAMPS DYNAMIQUES
     c_lab, c_inp, c_pts = st.columns([0.4, 5, 1.5])
     with c_lab: st.markdown('<div class="valign">Libellé</div>', unsafe_allow_html=True)
     with c_inp: 
@@ -236,7 +240,6 @@ def afficher_interface_dynamique(existing_data, current_sha, file_name):
         else:
             st.markdown('<div class="coord-box" style="background-color: transparent; border: 1px dashed #ccc; color: #ccc;">Attente...</div>', unsafe_allow_html=True)
 
-    # ACTIONS
     if st.session_state.edit_idx is not None:
         c1, c2 = st.columns(2)
         with c1:
@@ -271,5 +274,5 @@ def afficher_interface_dynamique(existing_data, current_sha, file_name):
                     st.session_state.mode_selection = "Existant"; st.session_state.last_created = file_name
                     st.session_state.clic = None; st.session_state.form_count += 1; st.rerun()
 
-# --- 7. APPEL DE L'INTERFACE ---
+# --- 7. APPEL ---
 afficher_interface_dynamique(existing_data, current_sha, file_name)
