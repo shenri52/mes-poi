@@ -111,13 +111,12 @@ st.title("📍 GéoCollect")
 st.markdown("#### 🗺️ Couche")
 modes = ["Existant", "Nouveau"]
 
-# Correction : On utilise une clé dynamique pour éviter le blocage du double clic
 choice = st.radio(
     "", modes, 
     index=modes.index(st.session_state.mode_selection), 
     horizontal=True, 
     label_visibility="collapsed",
-    key="radio_mode_selector"
+    key=f"radio_mode_{st.session_state.form_count}" # Clé dynamique pour la réactivité
 )
 
 if choice != st.session_state.mode_selection:
@@ -203,81 +202,4 @@ if donnees_carte.get("last_object_clicked"):
             coords = feat["geometry"]["coordinates"]
             if abs(coords[1] - obj["lat"]) < 0.0001 and abs(coords[0] - obj["lng"]) < 0.0001:
                 if st.session_state.edit_idx != i:
-                    st.session_state.edit_label = str(feat["properties"].get("libelle", "")).replace('<b>', '').replace('</b>', '').split('<')[0]
-                    st.session_state.edit_idx = i
-                    st.session_state.clic = {"lat": obj["lat"], "lng": obj["lng"]}
-                    st.session_state[f"libelle_{st.session_state.form_count}"] = st.session_state.edit_label
-                    st.rerun()
-
-if donnees_carte.get("last_clicked") and not donnees_carte.get("last_object_clicked"):
-    st.session_state.map_center = [donnees_carte["center"]["lat"], donnees_carte["center"]["lng"]]
-    st.session_state.map_zoom = donnees_carte["zoom"]
-    if st.session_state.clic != donnees_carte["last_clicked"]:
-        st.session_state.clic = donnees_carte["last_clicked"]
-        st.session_state.edit_idx = None
-        st.session_state.edit_label = ""
-        st.session_state[f"libelle_{st.session_state.form_count}"] = ""
-        st.rerun()
-
-c_lab, c_inp, c_pts = st.columns([0.4, 5, 1.5])
-with c_lab: st.markdown('<div class="valign">Libellé</div>', unsafe_allow_html=True)
-with c_inp: 
-    libelle = st.text_input("Libellé", key=f"libelle_{st.session_state.form_count}", label_visibility="collapsed")
-    modifs_extra = {}
-    if st.session_state.edit_idx is not None and existing_data:
-        p = existing_data["features"][st.session_state.edit_idx]["properties"]
-        for k, v in p.items():
-            if k not in ['libelle', 'date']:
-                modifs_extra[k] = st.text_input(f"{k}", value=v, key=f"edit_{k}_{st.session_state.form_count}")
-    
-    if st.session_state.mode_selection == "Nouveau":
-        st.info(f"💡 {10 - len(st.session_state.extra_fields)} champs personnalisés disponibles.")
-        for i, field in enumerate(st.session_state.extra_fields):
-            col_k, col_v, col_d = st.columns([2, 3, 0.5])
-            with col_k: field['key'] = st.text_input(f"Nom {i}", key=f"k_{i}_{st.session_state.form_count}", placeholder="Nom", label_visibility="collapsed")
-            with col_v: field['val'] = st.text_input(f"Val {i}", key=f"v_{i}_{st.session_state.form_count}", placeholder="Valeur", label_visibility="collapsed")
-            with col_d: 
-                if st.button("❌", key=f"del_{i}"): st.session_state.extra_fields.pop(i); st.rerun()
-        if len(st.session_state.extra_fields) < 10:
-            if st.button(f"➕ Ajouter un champ ({10 - len(st.session_state.extra_fields)} restants)"):
-                st.session_state.extra_fields.append({'key': '', 'val': ''}); st.rerun()
-
-with c_pts:
-    if st.session_state.clic:
-        st.markdown(f'<div class="coord-box">📍 {st.session_state.clic["lat"]:.5f}, {st.session_state.clic["lng"]:.5f}</div>', unsafe_allow_html=True)
-    else:
-        st.markdown('<div class="coord-box" style="background-color: transparent; border: 1px dashed #ccc; color: #ccc;">Attente...</div>', unsafe_allow_html=True)
-
-if st.session_state.edit_idx is not None:
-    c1, c2 = st.columns(2)
-    with c1:
-        if st.button("📝 Modifier", use_container_width=True):
-            data, sha = api_github(file_name)
-            data["features"][st.session_state.edit_idx]["properties"]["libelle"] = libelle
-            for k, v in modifs_extra.items():
-                data["features"][st.session_state.edit_idx]["properties"][k] = v
-            if api_github(file_name, data=data, sha=sha, methode="PUT"):
-                st.session_state.clic = None; st.session_state.edit_idx = None; st.session_state.form_count += 1; st.rerun()
-    with c2:
-        if st.button("🗑️ Supprimer", use_container_width=True):
-            data, sha = api_github(file_name)
-            del data["features"][st.session_state.edit_idx]
-            if api_github(file_name, data=data, sha=sha, methode="PUT"):
-                st.session_state.clic = None; st.session_state.edit_idx = None; st.session_state.form_count += 1; st.rerun()
-else:
-    if st.button("🚀 Sauvegarder", use_container_width=True):
-        if file_name and libelle and st.session_state.clic:
-            extra_props = {f['key'].strip(): f['val'].strip() for f in st.session_state.extra_fields if f['key'].strip()}
-            data_save, sha_save = api_github(file_name)
-            if data_save is None: data_save = {"type": "FeatureCollection", "features": []}
-            nouveau_poi = {
-                "type": "Feature",
-                "geometry": {"type": "Point", "coordinates": [st.session_state.clic['lng'], st.session_state.clic['lat']]},
-                "properties": {"libelle": libelle, "date": datetime.now().strftime("%Y-%m-%d"), **extra_props}
-            }
-            data_save['features'].append(nouveau_poi)
-            if api_github(file_name, data=data_save, sha=sha_save, methode="PUT"):
-                gerer_index(ajouter=file_name)
-                st.session_state.extra_fields = [] 
-                st.session_state.mode_selection = "Existant"; st.session_state.last_created = file_name
-                st.session_state.clic = None; st.session_state.form_count += 1; st.rerun()
+                    st.session
