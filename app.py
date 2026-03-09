@@ -11,49 +11,71 @@ from folium.plugins import LocateControl, Fullscreen
 st.set_page_config(page_title="GéoCollect", page_icon="📍", layout="wide")
 
 # --- NOUVEAU : FONCTION POP-UP (DIALOG) ---
-# --- NOUVEAU : FONCTION POP-UP (DIALOG) AVEC LISTE RÉELLE ---
 @st.dialog("ℹ️ À propos de GéoCollect")
 def afficher_a_propos():
     liste_index = gerer_index()
     
     # Récupération de la liste réelle et du poids via GitHub (uniquement au clic)
-    url_poids = f"https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/contents/data"
+    url_scan = f"https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/contents/data"
     headers = {"Authorization": f"token {GITHUB_TOKEN}"}
     poids_total_octets = 0
-    fichiers_reels = []
+    fichiers_reels_noms = [] # Pour la comparaison
+    fichiers_reels_details = [] # Pour l'affichage avec poids
     
     try:
-        r = requests.get(url_poids, headers=headers)
+        r = requests.get(url_scan, headers=headers)
         if r.status_code == 200:
             contenu = r.json()
             for f in contenu:
                 if f['name'].endswith('.geojson'):
                     poids_total_octets += f.get('size', 0)
-                    fichiers_reels.append(f"{f['name']} ({round(f.get('size', 0)/1024, 1)} Ko)")
-    except:
-        pass
-    
-    poids_ko = round(poids_total_octets / 1024, 2)
-    
-    st.markdown(f"""
-    📊 **Statistiques du dépôt :**
-    - Fichiers indexés : `{len(liste_index)}`
-    - Taille totale : `{poids_ko} Ko`
-    """)
+                    fichiers_reels_noms.append(f['name'])
+                    fichiers_reels_details.append(f"{f['name']} ({round(f.get('size', 0)/1024, 1)} Ko)")
+            
+            poids_ko = round(poids_total_octets / 1024, 2)
+            
+            st.markdown(f"""
+            📊 **Statistiques du dépôt :**
+            - Fichiers indexés : `{len(liste_index)}`
+            - Taille totale : `{poids_ko} Ko`
+            """)
 
-    # La rubrique "Voir les fichiers" demandée
-    with st.expander("📂 Voir les fichiers sur le serveur"):
-        if fichiers_reels:
-            for item in sorted(fichiers_reels):
-                # On met une petite coche si le fichier est bien dans l'index
-                nom_f = item.split(" (")[0]
-                statut = "✅" if nom_f in liste_index else "⚠️ Non indexé"
-                st.write(f"{statut} {item}")
-        else:
-            st.info("Aucun fichier détecté sur GitHub.")
+            # --- LOGIQUE DE RÉPARATION ---
+            set_index = set(liste_index)
+            set_serveur = set(fichiers_reels_noms)
 
+            if set_index != set_serveur:
+                st.warning("⚠️ Désynchronisation détectée entre l'index et le serveur.")
+                if st.button("🛠️ Réparer l'index", use_container_width=True):
+                    index_file = "data/index.json"
+                    # Récupération du SHA actuel pour la mise à jour
+                    _, sha_index = api_github_brut(index_file)
+                    nouveau_contenu = {"fichiers": sorted(fichiers_reels_noms)}
+                    
+                    if api_github_brut(index_file, data=nouveau_contenu, sha=sha_index, methode="PUT"):
+                        st.success("✅ Index mis à jour avec succès !")
+                        st.balloons()
+                        st.rerun()
+            else:
+                st.success("✅ L'index est parfaitement à jour.")
+
+            # --- AFFICHAGE DES FICHIERS ---
+            with st.expander("📂 Voir les fichiers sur le serveur"):
+                if fichiers_reels_details:
+                    for item in sorted(fichiers_reels_details):
+                        nom_f = item.split(" (")[0]
+                        statut = "✅" if nom_f in liste_index else "⚠️"
+                        st.write(f"{statut} {item}")
+                else:
+                    st.info("Aucun fichier détecté sur GitHub.")
+
+    except Exception as e:
+        st.error(f"Erreur lors de la vérification : {e}")
+
+    st.write("---")
     if st.button("Fermer", use_container_width=True):
         st.rerun()
+        
 def verifier_mot_de_passe():
     if "authentifie" not in st.session_state:
         st.session_state["authentifie"] = False
