@@ -25,7 +25,7 @@ def verifier_mot_de_passe():
         return False
     return True
 
-if not verifier_mot_ de_passe():
+if not verifier_mot_de_passe():
     st.stop()
 
 try:
