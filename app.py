@@ -33,9 +33,6 @@ def afficher_a_propos():
     📊 **Statistiques du dépôt :**
     - Jeux de données : `{nb_fichiers}`
     - Taille totale : `{poids_ko} Ko`
-    
-    ---
-    **GéoCollect v3.0** Interface de gestion de points d'intérêt avec synchronisation GitHub.
     """)
     if st.button("Fermer", use_container_width=True):
         st.rerun()
