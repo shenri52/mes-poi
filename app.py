@@ -10,11 +10,9 @@ from folium.plugins import LocateControl, Fullscreen
 # --- 1. CONFIGURATION ET SECRETS ---
 st.set_page_config(page_title="GéoCollect", page_icon="📍", layout="wide")
 
-# --- FONCTION DE PROTECTION (SÉCURITÉ) ---
 def verifier_mot_de_passe():
     if "authentifie" not in st.session_state:
         st.session_state["authentifie"] = False
-
     if not st.session_state["authentifie"]:
         st.markdown("<h1 style='text-align: center;'>🔒 Accès réservé</h1>", unsafe_allow_html=True)
         mdp_saisi = st.text_input("Veuillez saisir le mot de passe :", type="password")
@@ -27,11 +25,9 @@ def verifier_mot_de_passe():
         return False
     return True
 
-# --- APPEL DE LA SÉCURITÉ ---
 if not verifier_mot_de_passe():
     st.stop()
 
-# --- RESTE DU CODE GÉOCOLLECT INCHANGÉ ---
 try:
     GITHUB_TOKEN = st.secrets["GITHUB_TOKEN"]
     REPO_OWNER = st.secrets["REPO_OWNER"]
@@ -41,15 +37,57 @@ except KeyError:
     st.error("⚠️ Secrets GitHub manquants.")
     st.stop()
 
-# --- 2. FONCTIONS GITHUB ---
-def lister_geojson_github():
-    url = f"https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/contents/data"
-    headers = {"Authorization": f"token {GITHUB_TOKEN}"}
-    r = requests.get(url, headers=headers)
-    if r.status_code == 200:
-        return [f['name'] for f in r.json() if f['name'].endswith('.geojson')]
-    return []
+# --- 2. LOGIQUE D'INDEXATION (OPTIMISATION API) ---
 
+def api_github_brut(file_path, data=None, sha=None, methode="GET"):
+    """Fonction générique pour manipuler n'importe quel fichier (dont index.json)"""
+    url = f"https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/contents/{file_path}"
+    headers = {"Authorization": f"token {GITHUB_TOKEN}", "Accept": "application/vnd.github.v3+json"}
+    
+    if methode == "GET":
+        r = requests.get(url, headers=headers)
+        if r.status_code == 200:
+            res = r.json()
+            return json.loads(base64.b64decode(res['content']).decode('utf-8')), res['sha']
+        return None, None
+    elif methode == "PUT":
+        content_encoded = base64.b64encode(json.dumps(data, indent=4).encode('utf-8')).decode('utf-8')
+        payload = {"message": f"🔄 Maj {file_path}", "content": content_encoded, "branch": BRANCH}
+        if sha: payload["sha"] = sha
+        r = requests.put(url, json=payload, headers=headers)
+        return r.status_code in [200, 201]
+
+def gerer_index(ajouter=None, supprimer=None):
+    """Gère la liste des fichiers via index.json pour éviter de lister le dépôt"""
+    index_file = "data/index.json"
+    index_data, sha = api_github_brut(index_file)
+    
+    # Initialisation si l'index n'existe pas
+    if index_data is None:
+        url_scan = f"https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/contents/data"
+        r = requests.get(url_scan, headers={"Authorization": f"token {GITHUB_TOKEN}"})
+        fichiers = [f['name'] for f in r.json() if f['name'].endswith('.geojson')] if r.status_code == 200 else []
+        index_data = {"fichiers": fichiers}
+        api_github_brut(index_file, data=index_data, methode="PUT")
+        return fichiers
+
+    liste = index_data.get("fichiers", [])
+    maj = False
+
+    if ajouter and ajouter not in liste:
+        liste.append(ajouter)
+        maj = True
+    if supprimer and supprimer in liste:
+        liste.remove(supprimer)
+        maj = True
+        
+    if maj:
+        index_data["fichiers"] = liste
+        api_github_brut(index_file, data=index_data, sha=sha, methode="PUT")
+    
+    return liste
+
+# Fonctions d'origine pour les GeoJSON
 def api_github(file_path, data=None, sha=None, methode="GET"):
     full_path = f"data/{file_path}"
     url = f"https://api.github.com/repos/{REPO_OWNER}/{REPO_NAME}/contents/{full_path}"
@@ -66,12 +104,10 @@ def api_github(file_path, data=None, sha=None, methode="GET"):
         content_encoded = base64.b64encode(json.dumps(data, indent=4).encode('utf-8')).decode('utf-8')
         payload = {"message": "📍 Modif POI", "content": content_encoded, "branch": BRANCH}
         if sha: payload["sha"] = sha
-        r = requests.put(url, json=payload, headers=headers)
-        return r.status_code in [200, 201]
+        return requests.put(url, json=payload, headers=headers).status_code in [200, 201]
     elif methode == "DELETE":
         payload = {"message": f"🗑️ Suppression de {file_path}", "sha": sha, "branch": BRANCH}
-        r = requests.delete(url, json=payload, headers=headers)
-        return r.status_code == 200
+        return requests.delete(url, json=payload, headers=headers).status_code == 200
 
 # --- 3. INITIALISATION ---
 if 'clic' not in st.session_state: st.session_state.clic = None
@@ -85,21 +121,19 @@ if 'edit_label' not in st.session_state: st.session_state.edit_label = ""
 
 st.title("📍 GéoCollect")
 
-# --- 4. SELECTION DE LA COUCHE ---
+# --- 4. SELECTION DE LA COUCHE (UTILISE L'INDEX) ---
 st.markdown("#### 🗺️ Couche")
 modes = ["Existant", "Nouveau"]
 choice = st.radio("", modes, index=modes.index(st.session_state.mode_selection), horizontal=True, label_visibility="collapsed")
 st.session_state.mode_selection = choice
 
-existing_data = None 
-current_sha = None
-file_name = None
+existing_data, current_sha, file_name = None, None, None
 
 if st.session_state.mode_selection == "Nouveau":
     nom_saisi = st.text_input("Nom du nouveau fichier", "").strip()
     file_name = f"{nom_saisi}.geojson" if nom_saisi else None
 else:
-    liste_fichiers = lister_geojson_github()
+    liste_fichiers = gerer_index() # Optimisé : on ne scanne plus le dossier
     dict_affichage = {f: f.replace('.geojson', '') for f in liste_fichiers}
     idx_fichier = 0
     if st.session_state.last_created in liste_fichiers:
@@ -113,6 +147,7 @@ else:
             existing_data, current_sha = api_github(file_name)
             if st.button("🗑️", key="btn_del_file", use_container_width=True):
                 if api_github(file_name, sha=current_sha, methode="DELETE"):
+                    gerer_index(supprimer=file_name) # Mise à jour index
                     st.session_state.last_created = None
                     st.rerun()
 
@@ -121,39 +156,12 @@ st.write("---")
 # --- 5. STYLE CSS (TES RÉGLAGES D'ORIGINE) ---
 st.markdown("""
     <style>
-    [data-testid="stVerticalBlock"] > div {
-        padding-top: 0rem !important;
-        padding-bottom: 0rem !important;
-    }
-    div[data-testid="stHtmlBlock"] + div {
-        margin-top: -20px !important;
-    }
-    .element-container:has(iframe) {
-        margin-top: -20px !important;
-        margin-bottom: -20px !important;
-    }
-    div.stButton > button:first-child {
-        margin-bottom: 1px !important;
-        height: 38px;
-        border-radius: 8px !important;
-    }
-    .valign {
-        display: flex;
-        align-items: center;
-        height: 100%;
-        padding-top: 8px;
-        font-weight: bold;
-    }
-    .coord-box {
-        background-color: rgba(212, 237, 218, 0.8);
-        color: #155724;
-        margin-top: 5px !important;
-        margin-bottom: 5px !important;
-        padding: 5px 8px;
-        border-radius: 5px;
-        font-size: 0.75em;
-        border: 1px solid #c3e6cb;
-    }
+    [data-testid="stVerticalBlock"] > div { padding-top: 0rem !important; padding-bottom: 0rem !important; }
+    div[data-testid="stHtmlBlock"] + div { margin-top: -20px !important; }
+    .element-container:has(iframe) { margin-top: -20px !important; margin-bottom: -20px !important; }
+    div.stButton > button:first-child { margin-bottom: 1px !important; height: 38px; border-radius: 8px !important; }
+    .valign { display: flex; align-items: center; height: 100%; padding-top: 8px; font-weight: bold; }
+    .coord-box { background-color: rgba(212, 237, 218, 0.8); color: #155724; margin-top: 5px !important; margin-bottom: 5px !important; padding: 5px 8px; border-radius: 5px; font-size: 0.75em; border: 1px solid #c3e6cb; }
     </style>
 """, unsafe_allow_html=True)
 
@@ -177,21 +185,12 @@ if existing_data and "features" in existing_data:
         coords = feature["geometry"]["coordinates"]
         prop = feature["properties"]
         nom_txt = str(prop.get('libelle', 'Sans nom')).replace('<b>', '').replace('</b>', '').split('<')[0]
-        folium.Marker(
-            [coords[1], coords[0]], 
-            popup=folium.Popup(f"<b>{nom_txt}</b>", max_width=200),
-            tooltip=nom_txt,
-            icon=folium.Icon(color="blue", icon="info-sign")
-        ).add_to(m)
+        folium.Marker([coords[1], coords[0]], tooltip=nom_txt, icon=folium.Icon(color="blue", icon="info-sign")).add_to(m)
 
 if st.session_state.clic:
     folium.Marker([st.session_state.clic['lat'], st.session_state.clic['lng']], icon=folium.Icon(color="red", icon="star")).add_to(m)
 
-donnees_carte = st_folium(
-    m, width="100%", height=325,
-    center=st.session_state.map_center, zoom=st.session_state.map_zoom,
-    key=f"map_{st.session_state.form_count}"
-)
+donnees_carte = st_folium(m, width="100%", height=325, center=st.session_state.map_center, zoom=st.session_state.map_zoom, key=f"map_{st.session_state.form_count}")
 
 # --- 6. LOGIQUE DE CLIC ---
 if donnees_carte.get("last_object_clicked"):
@@ -219,22 +218,17 @@ if donnees_carte.get("last_clicked") and not donnees_carte.get("last_object_clic
         st.session_state[f"libelle_{st.session_state.form_count}"] = ""
         st.rerun()
 
-# --- 7. FORMULAIRE 3 COLONNES (RETOUR À TON ÉTAT INITIAL) ---
+# --- 7. FORMULAIRE 3 COLONNES ---
 c_lab, c_inp, c_pts = st.columns([0.4, 5, 1.5])
-
-with c_lab:
-    st.markdown('<div class="valign">Libellé</div>', unsafe_allow_html=True)
-
-with c_inp:
-    libelle = st.text_input("Libellé", key=f"libelle_{st.session_state.form_count}", label_visibility="collapsed")
-
+with c_lab: st.markdown('<div class="valign">Libellé</div>', unsafe_allow_html=True)
+with c_inp: libelle = st.text_input("Libellé", key=f"libelle_{st.session_state.form_count}", label_visibility="collapsed")
 with c_pts:
     if st.session_state.clic:
         st.markdown(f'<div class="coord-box">📍 {st.session_state.clic["lat"]:.5f}, {st.session_state.clic["lng"]:.5f}</div>', unsafe_allow_html=True)
     else:
         st.markdown('<div class="coord-box" style="background-color: transparent; border: 1px dashed #ccc; color: #ccc;">Attente...</div>', unsafe_allow_html=True)
 
-# --- 8. ACTIONS ---
+# --- 8. ACTIONS (AVEC RESET DES CHAMPS) ---
 if st.session_state.edit_idx is not None:
     c1, c2 = st.columns(2)
     with c1:
@@ -244,7 +238,7 @@ if st.session_state.edit_idx is not None:
             if api_github(file_name, data=data, sha=sha, methode="PUT"):
                 st.session_state.clic = None
                 st.session_state.edit_idx = None
-                st.session_state.form_count += 1
+                st.session_state.form_count += 1 # Reset des champs
                 st.rerun()
     with c2:
         if st.button("🗑️ Supprimer", use_container_width=True):
@@ -253,7 +247,7 @@ if st.session_state.edit_idx is not None:
             if api_github(file_name, data=data, sha=sha, methode="PUT"):
                 st.session_state.clic = None
                 st.session_state.edit_idx = None
-                st.session_state.form_count += 1
+                st.session_state.form_count += 1 # Reset des champs
                 st.rerun()
 else:
     if st.button("🚀 Sauvegarder", use_container_width=True):
@@ -267,8 +261,9 @@ else:
             }
             data_save['features'].append(nouveau_poi)
             if api_github(file_name, data=data_save, sha=sha_save, methode="PUT"):
+                gerer_index(ajouter=file_name) # On met à jour l'index
                 st.session_state.mode_selection = "Existant"
                 st.session_state.last_created = file_name
                 st.session_state.clic = None
-                st.session_state.form_count += 1
+                st.session_state.form_count += 1 # Reset des champs
                 st.rerun()
