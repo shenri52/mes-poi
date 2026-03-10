@@ -182,7 +182,7 @@ with t_col2:
 
 # --- 4. SELECTION DE LA COUCHE ---
 st.markdown("#### 🗺️ Couche")
-modes = ["Existant", "Nouveau"]
+modes = ["Existant", "Nouveau", "Importer"]
 
 choice = st.radio(
     "", modes, 
@@ -206,6 +206,23 @@ existing_data, current_sha, file_name = None, None, None
 if st.session_state.mode_selection == "Nouveau":
     nom_saisi = st.text_input("Nom du nouveau fichier", "").strip()
     file_name = f"{nom_saisi}.geojson" if nom_saisi else None
+elif st.session_state.mode_selection == "Importer":
+    fichier_upload = st.file_uploader("Choisir un fichier GeoJSON", type=['geojson'])
+    if fichier_upload:
+        try:
+            data_import = json.load(fichier_upload)
+            file_name = fichier_upload.name
+            if st.button(f"📤 Importer {file_name}", use_container_width=True):
+                # Vérification si existe déjà pour récupérer le SHA
+                _, sha_exist = api_github(file_name)
+                if api_github(file_name, data=data_import, sha=sha_exist, methode="PUT"):
+                    gerer_index(ajouter=file_name)
+                    st.session_state.last_created = file_name
+                    st.session_state.mode_selection = "Existant"
+                    st.success("Importé avec succès !")
+                    st.rerun()
+        except Exception as e:
+            st.error(f"Erreur lors de la lecture : {e}")
 else:
     liste_fichiers = gerer_index()
     dict_affichage = {f: f.replace('.geojson', '') for f in liste_fichiers}
