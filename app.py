@@ -178,11 +178,11 @@ with t_col1:
 with t_col2:
     st.write(" ") # Alignement
     if st.button("ℹ️ À propos", use_container_width=True):
-        afficher_a_pro_pos()
+        afficher_a_propos()
 
 # --- 4. SELECTION DE LA COUCHE ---
 st.markdown("#### 🗺️ Couche")
-modes = ["Existant", "Nouveau", "Importer"]
+modes = ["Existant", "Nouveau", "Importer"] # Modification : Ajout de "Importer"
 
 choice = st.radio(
     "", modes, 
@@ -213,14 +213,16 @@ elif st.session_state.mode_selection == "Importer":
         if st.button(f"📤 Importer {file_name}", use_container_width=True):
             try:
                 data_import = json.load(fichier_upload)
+                # On récupère le SHA si le fichier existe déjà pour permettre l'écrasement
                 _, sha_exist = api_github(file_name)
                 if api_github(file_name, data=data_import, sha=sha_exist, methode="PUT"):
                     gerer_index(ajouter=file_name)
+                    # --- CORRECTION BASCULE & PRÉSELECTION ---
                     st.session_state.last_created = file_name
                     st.session_state.mode_selection = "Existant"
                     st.rerun()
             except Exception as e:
-                st.error(f"Erreur : {e}")
+                st.error(f"Erreur lors de l'import : {e}")
 else:
     liste_fichiers = gerer_index()
     dict_affichage = {f: f.replace('.geojson', '') for f in liste_fichiers}
